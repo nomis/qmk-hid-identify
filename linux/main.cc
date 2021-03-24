@@ -23,10 +23,20 @@
 #include "qmk-hid-identify.h"
 
 int main(int argc, char *argv[]) {
-	if (argc != 2) {
-		std::cout << "Usage: " << argv[0] << " <hidraw device>" << std::endl;
+	int exit_ret = EX_OK;
+
+	if (argc < 2) {
+		std::cout << "Usage: " << argv[0] << " <hidraw device>..." << std::endl;
 		return EX_USAGE;
 	}
 
-	return QMKDevice(argv[1]).identify();
+	for (int i = 1; i < argc; i++) {
+		int ret = QMKDevice(argv[i]).identify();
+
+		if (exit_ret == EX_OK) {
+			exit_ret = ret;
+		}
+	}
+
+	return exit_ret;
 }
