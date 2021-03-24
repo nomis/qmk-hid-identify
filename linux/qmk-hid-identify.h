@@ -36,4 +36,5 @@ private:
 	int fd_ = -1;
 	std::string device_;
 	std::string name_;
+	uint32_t report_count_;
 };

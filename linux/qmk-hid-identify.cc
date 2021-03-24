@@ -36,8 +36,10 @@
 #include "qmk-hid-identify.h"
 #include "hid-report-desc.h"
 
-#define RAW_USAGE_PAGE 0xFF60
-#define RAW_USAGE_ID   0x0061
+#define RAW_USAGE_PAGE    0xFF60
+#define RAW_USAGE_ID      0x0061
+#define RAW_IN_USAGE_ID   0x0062
+#define RAW_OUT_USAGE_ID  0x0063
 
 /* POSIX */
 static inline __attribute__((unused)) const char *call_strerror_r(std::vector<char> &buf, int (*func)(int, char *, size_t)) {
@@ -166,12 +168,23 @@ int QMKDevice::is_qmk_device() {
 
 	unsigned int pos = 0;
 	do {
-		uint32_t usage_page = 0;
-		uint32_t usage = 0;
+		struct hid_report hid_report{};
 
-		ret = get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, &usage_page, &usage);
+		ret = get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, &hid_report);
 		if (ret == 0) {
-			if (usage_page == RAW_USAGE_PAGE && usage == RAW_USAGE_ID) {
+			if (hid_report.usage_page == RAW_USAGE_PAGE
+					&& hid_report.usage == RAW_USAGE_ID
+					&& hid_report.in.usage == RAW_IN_USAGE_ID
+					&& hid_report.in.minimum == 0
+					&& hid_report.in.maximum == UINT8_MAX
+					&& hid_report.in.size == 8 /* bits */
+					&& hid_report.in.count > 0
+					&& hid_report.out.usage == RAW_OUT_USAGE_ID
+					&& hid_report.out.minimum == 0
+					&& hid_report.out.maximum == UINT8_MAX
+					&& hid_report.out.size == 8 /* bits */
+					&& hid_report.out.count > 0) {
+				report_count_ = hid_report.out.count;
 				return EX_OK;
 			}
 		} else if (ret == -1) {
@@ -194,8 +207,16 @@ int QMKDevice::send_report() {
 		0x1D, 0x6B,
 	};
 
-	ssize_t ret = ::write(fd_, data.data(), data.size());
-	if (ret < 0 || (size_t)ret != data.size()) {
+	if (report_count_ < data.size() - 1) {
+		log(LOG_ERR, "Report count too small for message (" + std::to_string(report_count_)
+			+ " < " + std::to_string(data.size() - 1) + ")");
+		return EX_IOERR;
+	}
+
+	data.reserve(1 + report_count_);
+
+	ssize_t ret = ::write(fd_, data.data(), data.capacity());
+	if (ret < 0 || (size_t)ret != data.capacity()) {
 		log(LOG_ERR, "write: " + get_strerror());
 		return EX_IOERR;
 	}

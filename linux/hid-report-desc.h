@@ -29,6 +29,22 @@
 extern "C" {
 #endif
 
+struct hid_collection {
+	uint32_t usage;
+	uint32_t minimum;
+	uint32_t maximum;
+	uint32_t count;
+	uint32_t size;
+};
+
+struct hid_report {
+	uint32_t usage_page;
+	uint32_t usage;
+
+	struct hid_collection in;
+	struct hid_collection out;
+};
+
 /*
  * Retrieves the device's Usage Page and Usage from the report descriptor.
  * The algorithm returns the current Usage Page/Usage pair whenever a new
@@ -46,7 +62,7 @@ extern "C" {
  * 1 when finished processing descriptor.
  * -1 on a malformed report.
  */
-int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, uint32_t *usage_page, uint32_t *usage);
+int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, struct hid_report *hid_report);
 
 #ifdef __cplusplus
 }
