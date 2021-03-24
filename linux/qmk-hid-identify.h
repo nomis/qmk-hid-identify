@@ -17,4 +17,23 @@
 */
 #include <string>
 
-int qmk_identify(const std::string &device);
+class QMKDevice {
+public:
+	explicit QMKDevice(const std::string &device);
+	virtual ~QMKDevice();
+
+	int open();
+	int identify();
+	void close();
+
+	std::string name();
+	virtual void log(int level, const std::string &message);
+
+private:
+	int is_qmk_device();
+	int send_report();
+
+	int fd_ = -1;
+	std::string device_;
+	std::string name_;
+};

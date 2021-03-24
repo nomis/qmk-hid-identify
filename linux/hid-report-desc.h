@@ -22,9 +22,8 @@
         https://github.com/libusb/hidapi .
 ********************************************************/
 
+#include <stdint.h>
 #include <unistd.h>
-
-#include <linux/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +46,7 @@ extern "C" {
  * 1 when finished processing descriptor.
  * -1 on a malformed report.
  */
-int get_next_hid_usage(__u8 *report_descriptor, __u32 size, unsigned int *pos, unsigned short *usage_page, unsigned short *usage);
+int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, uint32_t *usage_page, uint32_t *usage);
 
 #ifdef __cplusplus
 }

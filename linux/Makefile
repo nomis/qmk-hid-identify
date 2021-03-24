@@ -1,7 +1,7 @@
 .PHONY: all clean
 
-CFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror
-CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror
+CFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -std=c99
+CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -std=c++11
 LDFLAGS = -flto
 LDLIBS = -lstdc++
 

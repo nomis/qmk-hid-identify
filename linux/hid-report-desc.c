@@ -22,9 +22,8 @@
         https://github.com/libusb/hidapi .
 ********************************************************/
 
+#include <stdint.h>
 #include <unistd.h>
-
-#include <linux/types.h>
 
 #include "hid-report-desc.h"
 
@@ -33,7 +32,7 @@
  * Returns 1 if successful, 0 if an invalid key
  * Sets data_len and key_size when successful
  */
-static int get_hid_item_size(__u8 *report_descriptor, unsigned int pos, __u32 size, int *data_len, int *key_size)
+static int get_hid_item_size(uint8_t *report_descriptor, unsigned int pos, size_t size, int *data_len, int *key_size)
 {
 	int key = report_descriptor[pos];
 	int size_code;
@@ -89,7 +88,7 @@ static int get_hid_item_size(__u8 *report_descriptor, unsigned int pos, __u32 si
  * Get bytes from a HID Report Descriptor.
  * Only call with a num_bytes of 0, 1, 2, or 4.
  */
-static __u32 get_hid_report_bytes(__u8 *rpt, size_t len, size_t num_bytes, size_t cur)
+static uint32_t get_hid_report_bytes(uint8_t *rpt, size_t len, size_t num_bytes, size_t cur)
 {
 	/* Return if there aren't enough bytes. */
 	if (cur + num_bytes >= len)
@@ -129,7 +128,7 @@ static __u32 get_hid_report_bytes(__u8 *rpt, size_t len, size_t num_bytes, size_
  * 1 when finished processing descriptor.
  * -1 on a malformed report.
  */
-int get_next_hid_usage(__u8 *report_descriptor, __u32 size, unsigned int *pos, unsigned short *usage_page, unsigned short *usage)
+int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, uint32_t *usage_page, uint32_t *usage)
 {
 	int data_len, key_size;
 	int initial = *pos == 0; /* Used to handle case where no top-level application collection is defined */

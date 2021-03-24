@@ -28,5 +28,5 @@ int main(int argc, char *argv[]) {
 		return EX_USAGE;
 	}
 
-	return qmk_identify(argv[1]);
+	return QMKDevice(argv[1]).identify();
 }
