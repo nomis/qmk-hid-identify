@@ -204,7 +204,7 @@ int QMKDevice::send_report() {
 		0x00, 0x01,
 
 		/* OS: Linux */
-		0x1D, 0x6B,
+		'L', 'N', 'X', 0x00,
 	};
 
 	if (report_count_ < data.size() - 1) {
