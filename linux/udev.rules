@@ -1,0 +1,1 @@
+ACTION=="add|change", KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{bInterfaceNumber}=="01", RUN+="/usr/local/sbin/qmk-hid-identify /dev/$kernel"
