@@ -17,27 +17,15 @@
 */
 #pragma once
 
-#include <string>
+#include <stdbool.h>
+#include <stdint.h>
 
-class QMKDevice {
-public:
-	explicit QMKDevice(const std::string &device);
-	virtual ~QMKDevice();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-	int open();
-	int identify();
-	void close();
+bool usb_device_allowed(uint16_t vid, uint16_t pid);
 
-	std::string name();
-	virtual void log(int level, const std::string &message);
-
-private:
-	int is_allowed_device();
-	int is_qmk_device();
-	int send_report();
-
-	int fd_ = -1;
-	std::string device_;
-	std::string name_;
-	uint32_t report_count_;
-};
+#ifdef __cplusplus
+}
+#endif

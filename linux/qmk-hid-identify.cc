@@ -15,6 +15,8 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+#include "qmk-hid-identify.h"
+
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -33,8 +35,8 @@
 #include <string>
 #include <vector>
 
-#include "qmk-hid-identify.h"
 #include "hid-report-desc.h"
+#include "../common/usb-vid-pid.h"
 
 #define RAW_USAGE_PAGE    0xFF60
 #define RAW_USAGE_ID      0x0061
@@ -97,11 +99,21 @@ int QMKDevice::open() {
 int QMKDevice::identify() {
 	open();
 
-	int ret = is_qmk_device();
+	int ret = is_allowed_device();
 
 	if (ret != EX_OK) {
 		if (ret == EX_UNAVAILABLE) {
-			log(LOG_ERR, "Not a QMK device");
+			log(LOG_ERR, "Device not allowed");
+		}
+
+		return ret;
+	}
+
+	ret = is_qmk_device();
+
+	if (ret != EX_OK) {
+		if (ret == EX_UNAVAILABLE) {
+			log(LOG_ERR, "Not a QMK raw HID device interface");
 		} else if (ret == EX_DATAERR) {
 			log(LOG_ERR, "Malformed report descriptor");
 		}
@@ -140,6 +152,24 @@ void QMKDevice::log(int level, const std::string &message) {
 	}
 }
 
+int QMKDevice::is_allowed_device() {
+	struct hidraw_devinfo info{};
+
+	int ret = ::ioctl(fd_, HIDIOCGRAWINFO, &info);
+	if (ret < 0) {
+		log(LOG_ERR, "HIDIOCGRAWINFO: " + get_strerror());
+		return EX_OSERR;
+	}
+
+	if (info.bustype == BUS_USB) {
+		if (::usb_device_allowed(info.vendor, info.product)) {
+			return EX_OK;
+		}
+	}
+
+	return EX_UNAVAILABLE;
+}
+
 int QMKDevice::is_qmk_device() {
 	struct hidraw_report_descriptor rpt_desc{};
 	int desc_size = 0;
@@ -170,7 +200,7 @@ int QMKDevice::is_qmk_device() {
 	do {
 		struct hid_report hid_report{};
 
-		ret = get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, &hid_report);
+		ret = ::get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, &hid_report);
 		if (ret == 0) {
 			if (hid_report.usage_page == RAW_USAGE_PAGE
 					&& hid_report.usage == RAW_USAGE_ID

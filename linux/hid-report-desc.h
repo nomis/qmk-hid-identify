@@ -1,4 +1,21 @@
-// https://github.com/libusb/hidapi 6a01f3b4a8862b19a7ec768752ebcfc1a412f4b1 hidapi/linux/hid.c
+/*
+	qmk-hid-identify - Identify the current OS to QMK device
+	Copyright 2021  Simon Arlott
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+// Modified from https://github.com/libusb/hidapi 6a01f3b4a8862b19a7ec768752ebcfc1a412f4b1 hidapi/linux/hid.c
 /*******************************************************
  HIDAPI - Multi-Platform library for
  communication with HID devices.
@@ -21,6 +38,7 @@
  code repository located at:
         https://github.com/libusb/hidapi .
 ********************************************************/
+#pragma once
 
 #include <stdint.h>
 #include <unistd.h>

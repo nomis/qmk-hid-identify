@@ -15,29 +15,33 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#pragma once
+#include "usb-vid-pid.h"
 
-#include <string>
+#include <stdbool.h>
+#include <stdint.h>
 
-class QMKDevice {
-public:
-	explicit QMKDevice(const std::string &device);
-	virtual ~QMKDevice();
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
-	int open();
-	int identify();
-	void close();
-
-	std::string name();
-	virtual void log(int level, const std::string &message);
-
-private:
-	int is_allowed_device();
-	int is_qmk_device();
-	int send_report();
-
-	int fd_ = -1;
-	std::string device_;
-	std::string name_;
-	uint32_t report_count_;
+struct usb_device {
+	uint16_t vid;
+	uint16_t pid;
+	uint16_t pid_mask;
 };
+
+static const struct usb_device devices[] = {
+	{ 0x1209, 0x0000, 0xF000 },
+	{ 0x16C0, 0x05DF, 0xFFFF },
+	{ 0x16C0, 0x27D9, 0xFFFF },
+	{ 0x16C0, 0x27DA, 0xFFFE },
+	{ 0x16C0, 0x27DC, 0xFFFF },
+};
+
+bool usb_device_allowed(uint16_t vid, uint16_t pid) {
+	for (unsigned int i = 0; i < ARRAY_SIZE(devices); i++) {
+		if (vid == devices[i].vid && (pid & devices[i].pid_mask) == devices[i].pid) {
+			return true;
+		}
+	}
+
+	return false;
+}
