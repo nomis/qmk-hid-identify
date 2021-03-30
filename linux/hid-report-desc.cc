@@ -15,7 +15,8 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-// Modified from https://github.com/libusb/hidapi 6a01f3b4a8862b19a7ec768752ebcfc1a412f4b1 hidapi/linux/hid.c
+// Modified from https://github.com/libusb/hidapi
+// commit 6a01f3b4a8862b19a7ec768752ebcfc1a412f4b1 hidapi/linux/hid.c
 /*******************************************************
  HIDAPI - Multi-Platform library for
  communication with HID devices.
@@ -41,9 +42,9 @@
 
 #include "hid-report-desc.h"
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <unistd.h>
+#include <cstdint>
+
+namespace hid_identify {
 
 /*
  * Gets the size of the HID item at the given position
@@ -146,7 +147,7 @@ static uint32_t get_hid_report_bytes(uint8_t *rpt, size_t len, size_t num_bytes,
  * 1 when finished processing descriptor.
  * -1 on a malformed report.
  */
-int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, struct hid_report *hid_report)
+int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, HIDReport &hid_report)
 {
 	int data_len, key_size;
 	int initial = *pos == 0; /* Used to handle case where no top-level application collection is defined */
@@ -156,18 +157,8 @@ int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *po
 	/* Usage is a Local Item, it must be set before each Main Item (Collection) before a pair is returned */
 	bool collection = false;
 
-	struct hid_collection tmp = { 0 };
-
-	bool usage_found = false;
-	bool min_found = false;
-	bool max_found = false;
-	bool count_found = false;
-	bool size_found = false;
-
-	hid_report->usage_page = 0;
-	hid_report->usage = 0;
-	hid_report->in = tmp;
-	hid_report->out = tmp;
+	struct HIDCollection tmp{};
+	hid_report = {};
 
 	while (*pos < size) {
 		int key = report_descriptor[*pos];
@@ -180,70 +171,69 @@ int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *po
 		switch (key_cmd) {
 		case 0x4: /* Usage Page 6.2.2.7 (Global) */
 			if (!collection) {
-				hid_report->usage_page = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
+				hid_report.usage_page = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
 				usage_page_found = true;
 			}
 			break;
 
 		case 0x8: /* Usage 6.2.2.8 (Local) */
 			tmp.usage = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
-			usage_found = true;
+			tmp.has_usage = true;
 			break;
 
 		case 0xa0: /* Collection 6.2.2.4 (Main) */
 			collection = true;
 
 			/* A Usage Item (Local) must be found for the pair to be valid */
-			if (usage_page_found && usage_found) {
-				hid_report->usage = tmp.usage;
+			if (usage_page_found && tmp.has_usage) {
+				hid_report.usage = tmp.usage;
 				usage_pair_ready = true;
 			}
-
-			/* Usage is a Local Item, unset it */
-			usage_found = false;
-			min_found = false;
-			max_found = false;
-			count_found = false;
-			size_found = false;
 			break;
 
 		case 0x14: /* Usage Minimum (Local) */
 			if (collection) {
 				tmp.minimum = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
-				min_found = true;
+				tmp.has_minimum = true;
 			}
 			break;
 
 		case 0x24: /* Usage Maximum (Local) */
 			if (collection) {
 				tmp.maximum = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
-				max_found = true;
+				tmp.has_maximum = true;
 			}
 			break;
 
 		case 0x74: /* Report Size (Local) */
 			if (collection) {
 				tmp.size = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
-				size_found = true;
+				tmp.has_size = true;
 			}
 			break;
 
 		case 0x94: /* Report Count (Local) */
 			if (collection) {
 				tmp.count = get_hid_report_bytes(report_descriptor, size, data_len, *pos);
-				count_found = true;
+				tmp.has_count = true;
 			}
 			break;
 
 		case 0x80: /* Input 6.2.2.4 (Main) */
-			if (collection && usage_found && min_found && max_found && count_found && size_found) {
-				hid_report->in = tmp;
+			if (collection) {
+				hid_report.in.emplace_back(tmp);
 			}
 			break;
 
 		case 0x90: /* Output 6.2.2.4 (Main) */
-			if (collection && usage_found && min_found && max_found && count_found && size_found) {
-				hid_report->out = tmp;
+			if (collection) {
+				hid_report.out.emplace_back(tmp);
+			}
+			break;
+
+		case 0xb0: /* Feature 6.2.2.4 (Main) */
+			if (collection) {
+				hid_report.feature.emplace_back(tmp);
 			}
 			break;
 
@@ -261,14 +251,11 @@ int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *po
 		switch (key_cmd) {
 			case 0x80: /* Input 6.2.2.4 (Main) */
 			case 0x90: /* Output 6.2.2.4 (Main) */
+			case 0xa0: /* Collection 6.2.2.4 (Main) */
 			case 0xb0: /* Feature 6.2.2.4 (Main) */
 			case 0xc0: /* End Collection 6.2.2.4 (Main) */
 				/* Usage is a Local Item, unset it */
-				usage_found = false;
-				min_found = false;
-				max_found = false;
-				count_found = false;
-				size_found = false;
+				tmp = {};
 				break;
 		}
 
@@ -278,8 +265,10 @@ int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *po
 
 	/* If no top-level application collection is found and usage page/usage pair is found, pair is valid
 	   https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/top-level-collections */
-	if (initial && usage_page_found && usage_found)
+	if (initial && usage_page_found && tmp.has_usage)
 		return 0; /* success */
 
 	return 1; /* finished processing */
 }
+
+} // namespace hid_identify

@@ -15,12 +15,36 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#pragma once
+#include "usb-vid-pid.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace hid_identify {
 
-bool usb_device_allowed(uint16_t vid, uint16_t pid);
+struct USBDevice {
+public:
+	uint16_t vid;
+	uint16_t pid;
+	uint16_t pid_mask;
+};
+
+bool usb_device_allowed(uint16_t vid, uint16_t pid) {
+	static const std::vector<USBDevice> devices{
+		{ 0x1209, 0x0000, 0xF000 },
+		{ 0x16C0, 0x05DF, 0xFFFF },
+		{ 0x16C0, 0x27D9, 0xFFFF },
+		{ 0x16C0, 0x27DA, 0xFFFE },
+		{ 0x16C0, 0x27DC, 0xFFFF },
+	};
+
+	for (auto& device : devices) {
+		if (vid == device.vid && (pid & device.pid_mask) == device.pid) {
+			return true;
+		}
+	}
+
+	return false;
+}
 
 } // namespace hid_identify

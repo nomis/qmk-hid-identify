@@ -15,7 +15,8 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-// Modified from https://github.com/libusb/hidapi 6a01f3b4a8862b19a7ec768752ebcfc1a412f4b1 hidapi/linux/hid.c
+// Modified from https://github.com/libusb/hidapi
+// commit 6a01f3b4a8862b19a7ec768752ebcfc1a412f4b1 hidapi/linux/hid.c
 /*******************************************************
  HIDAPI - Multi-Platform library for
  communication with HID devices.
@@ -40,28 +41,11 @@
 ********************************************************/
 #pragma once
 
-#include <stdint.h>
-#include <unistd.h>
+#include <cstdint>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "../common/types.h"
 
-struct hid_collection {
-	uint32_t usage;
-	uint32_t minimum;
-	uint32_t maximum;
-	uint32_t count;
-	uint32_t size;
-};
-
-struct hid_report {
-	uint32_t usage_page;
-	uint32_t usage;
-
-	struct hid_collection in;
-	struct hid_collection out;
-};
+namespace hid_identify {
 
 /*
  * Retrieves the device's Usage Page and Usage from the report descriptor.
@@ -80,8 +64,6 @@ struct hid_report {
  * 1 when finished processing descriptor.
  * -1 on a malformed report.
  */
-int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, struct hid_report *hid_report);
+int get_next_hid_usage(uint8_t *report_descriptor, size_t size, unsigned int *pos, HIDReport &hid_report);
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace hid_identify

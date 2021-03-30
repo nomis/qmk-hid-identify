@@ -15,33 +15,48 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include "usb-vid-pid.h"
+#pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <cstdint>
+#include <vector>
 
-#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+namespace hid_identify {
 
-struct usb_device {
-	uint16_t vid;
-	uint16_t pid;
-	uint16_t pid_mask;
+enum class LogLevel {
+	ERROR,
+	WARNING,
+	INFO,
 };
 
-static const struct usb_device devices[] = {
-	{ 0x1209, 0x0000, 0xF000 },
-	{ 0x16C0, 0x05DF, 0xFFFF },
-	{ 0x16C0, 0x27D9, 0xFFFF },
-	{ 0x16C0, 0x27DA, 0xFFFE },
-	{ 0x16C0, 0x27DC, 0xFFFF },
+struct USBDeviceInfo {
+public:
+	uint16_t vendor;
+	uint16_t product;
+	int16_t interface;
 };
 
-bool usb_device_allowed(uint16_t vid, uint16_t pid) {
-	for (unsigned int i = 0; i < ARRAY_SIZE(devices); i++) {
-		if (vid == devices[i].vid && (pid & devices[i].pid_mask) == devices[i].pid) {
-			return true;
-		}
-	}
+struct HIDCollection {
+public:
+	uint32_t usage;
+	bool has_usage;
+	uint32_t minimum;
+	bool has_minimum;
+	uint32_t maximum;
+	bool has_maximum;
+	uint32_t count;
+	bool has_count;
+	uint32_t size;
+	bool has_size;
+};
 
-	return false;
-}
+struct HIDReport {
+public:
+	uint32_t usage_page;
+	uint32_t usage;
+
+	std::vector<HIDCollection> in;
+	std::vector<HIDCollection> out;
+	std::vector<HIDCollection> feature;
+};
+
+} // namespace hid_identify

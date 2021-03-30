@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	for (int i = 1; i < argc; i++) {
-		int ret = QMKDevice(argv[i]).identify();
+		int ret = hid_identify::LinuxHIDDevice(argv[i]).identify();
 
 		if (exit_ret == EX_OK) {
 			exit_ret = ret;

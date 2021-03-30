@@ -17,10 +17,41 @@
 */
 #pragma once
 
-#include <cstdint>
+#include <initializer_list>
+#include <string>
+#include <vector>
+
+#include "types.h"
 
 namespace hid_identify {
 
-bool usb_device_allowed(uint16_t vid, uint16_t pid);
+std::initializer_list<uint8_t> os_identity();
+
+class HIDDevice {
+public:
+	virtual ~HIDDevice() = default;
+
+	virtual int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) = 0;
+	int identify();
+	virtual void close();
+
+	virtual void log(LogLevel level, const std::string &message) = 0;
+
+	HIDDevice(const HIDDevice&) = delete;
+	HIDDevice& operator=(const HIDDevice&) = delete;
+
+protected:
+	HIDDevice() = default;
+	virtual int send_report(std::vector<uint8_t> &data) = 0;
+
+private:
+	int is_allowed_device();
+	int is_qmk_device();
+	int send_report();
+
+	USBDeviceInfo device_info_;
+	std::vector<HIDReport> reports_;
+	uint32_t report_count_ = 0;
+};
 
 } // namespace hid_identify

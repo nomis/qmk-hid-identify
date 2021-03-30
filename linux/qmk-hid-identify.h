@@ -17,27 +17,38 @@
 */
 #pragma once
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
-class QMKDevice {
+#include "../common/hid-device.h"
+#include "../common/types.h"
+#include "unique-fd.h"
+
+namespace hid_identify {
+
+class LinuxHIDDevice: public HIDDevice {
 public:
-	explicit QMKDevice(const std::string &device);
-	virtual ~QMKDevice();
+	LinuxHIDDevice(const std::string &pathname);
 
-	int open();
-	int identify();
-	void close();
+	int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
+	std::string name() const;
+	void close() override;
 
-	std::string name();
-	virtual void log(int level, const std::string &message);
+	void log(LogLevel level, const std::string &message) override;
+
+protected:
+	int send_report(std::vector<uint8_t> &data) override;
 
 private:
-	int is_allowed_device();
-	int is_qmk_device();
-	int send_report();
+	int init_device_info(int fd, USBDeviceInfo &device_info);
+	int init_reports(int fd, std::vector<HIDReport> &reports);
+	void init_name(int fd);
 
-	int fd_ = -1;
-	std::string device_;
+	const std::string pathname_;
+	unique_fd fd_;
 	std::string name_;
-	uint32_t report_count_;
+	uint32_t report_count_ = 0;
 };
+
+} // namespace hid_identify

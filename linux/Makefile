@@ -1,18 +1,28 @@
 .PHONY: all clean
 
 CFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -std=c99
-CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -std=c++11
+CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -std=c++17
 LDFLAGS = -flto
 LDLIBS = -lstdc++
 
 all: qmk-hid-identify
 
-qmk-hid-identify: qmk-hid-identify.o main.o hid-report-desc.o usb-vid-pid.o
-qmk-hid-identify.o: hid-report-desc.h qmk-hid-identify.h ../common/usb-vid-pid.h
-hid-report-desc.o: hid-report-desc.h
-usb-vid-pid.o: ../common/usb-vid-pid.c ../common/usb-vid-pid.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+qmk-hid-identify: main.o qmk-hid-identify.o hid-report-desc.o hid-device.o usb-vid-pid.o
+
 main.o: qmk-hid-identify.h
+qmk-hid-identify.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h hid-report-desc.h unique-fd.h
+hid-report-desc.o: hid-report-desc.h ../common/types.h
+
+hid-device.o: ../common/hid-device.cc ../common/hid-device.h ../common/types.h ../common/usb-vid-pid.h
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+usb-vid-pid.o: ../common/usb-vid-pid.cc ../common/usb-vid-pid.h
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+
+#qmk-hid-identify.h: ../common/hid-device.h ../common/types.h unique-fd.h
+#id-report-desc.h: ../common/types.h
+#../common/hid-device.h: ../common/types.h
+#../common/types.h:
+#../common/usb-vid-pid.h:
 
 clean:
 	rm -f -- qmk-hid-identify *.o

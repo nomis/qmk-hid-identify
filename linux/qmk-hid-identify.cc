@@ -31,17 +31,17 @@
 #include <linux/input.h>
 #include <linux/hidraw.h>
 
+#include <initializer_list>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "../common/hid-device.h"
+#include "../common/types.h"
 #include "hid-report-desc.h"
-#include "../common/usb-vid-pid.h"
 
-#define RAW_USAGE_PAGE    0xFF60
-#define RAW_USAGE_ID      0x0061
-#define RAW_IN_USAGE_ID   0x0062
-#define RAW_OUT_USAGE_ID  0x0063
+namespace hid_identify {
 
 /* POSIX */
 static inline __attribute__((unused)) const char *call_strerror_r(std::vector<char> &buf, int (*func)(int, char *, size_t)) {
@@ -68,190 +68,157 @@ static std::string get_strerror() {
 	}
 }
 
-QMKDevice::QMKDevice(const std::string &device) : device_(device) {
+std::initializer_list<uint8_t> os_identity() {
+	return {'L', 'N', 'X', 0};
 }
 
-QMKDevice::~QMKDevice() {
-	close();
+LinuxHIDDevice::LinuxHIDDevice(const std::string &pathname) : pathname_(pathname) {
 }
 
-int QMKDevice::open() {
-	if (fd_ == -1) {
-		fd_ = ::open(device_.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
-
-		if (fd_ == -1) {
-			log(LOG_ERR, get_strerror());
+int LinuxHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) {
+	if (!fd_) {
+		auto fd = unique_fd(::open(pathname_.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC));
+		if (!fd) {
+			log(LogLevel::ERROR, get_strerror());
 			return EX_NOINPUT;
 		}
 
-		std::vector<char> buf(256);
-
-		if (::ioctl(fd_, HIDIOCGRAWPHYS(buf.size()), buf.data()) < 0) {
-			log(LOG_WARNING, "HIDIOCGRAWPHYS: " + get_strerror());
-		} else {
-			name_ = buf.data();
+		int ret = init_device_info(fd.get(), device_info);
+		if (ret != EX_OK) {
+			return ret;
 		}
+
+		ret = init_reports(fd.get(), reports);
+		if (ret != EX_OK) {
+			return ret;
+		}
+
+		init_name(fd.get());
+
+		fd_ = std::move(fd);
 	}
 
 	return EX_OK;
 }
 
-int QMKDevice::identify() {
-	open();
-
-	int ret = is_allowed_device();
-
-	if (ret != EX_OK) {
-		if (ret == EX_UNAVAILABLE) {
-			log(LOG_ERR, "Device not allowed");
-		}
-
-		return ret;
-	}
-
-	ret = is_qmk_device();
-
-	if (ret != EX_OK) {
-		if (ret == EX_UNAVAILABLE) {
-			log(LOG_ERR, "Not a QMK raw HID device interface");
-		} else if (ret == EX_DATAERR) {
-			log(LOG_ERR, "Malformed report descriptor");
-		}
-
-		return ret;
-	}
-
-	return send_report();
-}
-
-void QMKDevice::close() {
-	if (fd_ != -1) {
-		::close(fd_);
-		fd_ = -1;
-		name_.clear();
-	}
-}
-
-std::string QMKDevice::name() {
-	return name_;
-}
-
-void QMKDevice::log(int level, const std::string &message) {
-	std::string prefix = device_;
-
-	if (!name_.empty()) {
-		prefix += " (" + name_ + ")";
-	}
-
-	::syslog(LOG_USER | level, "%s: %s", prefix.c_str(), message.c_str());
-
-	if (level < LOG_NOTICE) {
-		std::cerr << prefix << ": " << message << std::endl;
-	} else {
-		std::cout << prefix << ": " << message << std::endl;
-	}
-}
-
-int QMKDevice::is_allowed_device() {
+int LinuxHIDDevice::init_device_info(int fd, USBDeviceInfo &device_info) {
 	struct hidraw_devinfo info{};
 
-	int ret = ::ioctl(fd_, HIDIOCGRAWINFO, &info);
-	if (ret < 0) {
-		log(LOG_ERR, "HIDIOCGRAWINFO: " + get_strerror());
+	if (::ioctl(fd, HIDIOCGRAWINFO, &info) < 0) {
+		log(LogLevel::ERROR, "HIDIOCGRAWINFO: " + get_strerror());
 		return EX_OSERR;
 	}
 
-	if (info.bustype == BUS_USB) {
-		if (::usb_device_allowed(info.vendor, info.product)) {
-			return EX_OK;
-		}
-	}
+	device_info = {
+		.vendor = (uint16_t)info.vendor,
+		.product = (uint16_t)info.product,
+		.interface = -1
+	};
 
-	return EX_UNAVAILABLE;
+	return EX_OK;
 }
 
-int QMKDevice::is_qmk_device() {
+int LinuxHIDDevice::init_reports(int fd, std::vector<HIDReport> &reports) {
 	struct hidraw_report_descriptor rpt_desc{};
 	int desc_size = 0;
 
-	int ret = ::ioctl(fd_, HIDIOCGRDESCSIZE, &desc_size);
-	if (ret < 0) {
-		log(LOG_ERR, "HIDIOCGRDESCSIZE: " + get_strerror());
+	if (::ioctl(fd, HIDIOCGRDESCSIZE, &desc_size) < 0) {
+		log(LogLevel::ERROR, "HIDIOCGRDESCSIZE: " + get_strerror());
 		return EX_OSERR;
 	}
 
 	if (desc_size < 0) {
-		log(LOG_ERR, "Report descriptor size is negative (" + std::to_string(desc_size) + ")");
+		log(LogLevel::ERROR, "Report descriptor size is negative (" + std::to_string(desc_size) + ")");
 		return EX_SOFTWARE;
 	} else if ((unsigned int)desc_size > sizeof(rpt_desc.value)) {
-		log(LOG_ERR, "Report descriptor size too large (" + std::to_string(desc_size)
+		log(LogLevel::ERROR, "Report descriptor size too large (" + std::to_string(desc_size)
 			+ " > " + std::to_string(sizeof(rpt_desc.value)) + ")");
 		return EX_SOFTWARE;
 	}
 
 	rpt_desc.size = desc_size;
-	ret = ::ioctl(fd_, HIDIOCGRDESC, &rpt_desc);
-	if (ret < 0) {
-		log(LOG_ERR, "HIDIOCGRDESC: " + get_strerror());
+	if (::ioctl(fd, HIDIOCGRDESC, &rpt_desc) < 0) {
+		log(LogLevel::ERROR, "HIDIOCGRDESC: " + get_strerror());
 		return EX_OSERR;
 	}
 
 	unsigned int pos = 0;
+	int ret;
 	do {
-		struct hid_report hid_report{};
+		HIDReport hid_report{};
 
-		ret = ::get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, &hid_report);
+		ret = get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, hid_report);
 		if (ret == 0) {
-			if (hid_report.usage_page == RAW_USAGE_PAGE
-					&& hid_report.usage == RAW_USAGE_ID
-					&& hid_report.in.usage == RAW_IN_USAGE_ID
-					&& hid_report.in.minimum == 0
-					&& hid_report.in.maximum == UINT8_MAX
-					&& hid_report.in.size == 8 /* bits */
-					&& hid_report.in.count > 0
-					&& hid_report.out.usage == RAW_OUT_USAGE_ID
-					&& hid_report.out.minimum == 0
-					&& hid_report.out.maximum == UINT8_MAX
-					&& hid_report.out.size == 8 /* bits */
-					&& hid_report.out.count > 0) {
-				report_count_ = hid_report.out.count;
-				return EX_OK;
-			}
+			reports.emplace_back(hid_report);
 		} else if (ret == -1) {
 			return EX_DATAERR;
 		}
 	} while (ret != 0);
 
-	return EX_UNAVAILABLE;
+	return EX_OK;
 }
 
-int QMKDevice::send_report() {
-	std::vector<uint8_t> data {
-		/* Report ID */
-		0x00,
+void LinuxHIDDevice::init_name(int fd) {
+	std::vector<char> buf(256);
 
-		/* Command: Identify */
-		0x00, 0x01,
+	if (::ioctl(fd, HIDIOCGRAWPHYS(buf.size()), buf.data()) < 0) {
+		log(LogLevel::WARNING, "HIDIOCGRAWPHYS: " + get_strerror());
+		name_.clear();
+	} else {
+		name_ = buf.data();
+	}
+}
 
-		/* OS: Linux */
-		'L', 'N', 'X', 0x00,
-	};
+std::string LinuxHIDDevice::name() const {
+	return name_;
+}
 
-	if (report_count_ < data.size() - 1) {
-		log(LOG_ERR, "Report count too small for message (" + std::to_string(report_count_)
-			+ " < " + std::to_string(data.size() - 1) + ")");
-		return EX_IOERR;
+void LinuxHIDDevice::close() {
+	fd_.clear();
+	name_.clear();
+	HIDDevice::close();
+}
+
+void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
+	std::string prefix = pathname_;
+
+	if (!name_.empty()) {
+		prefix += " (" + name_ + ")";
 	}
 
-	data.reserve(1 + report_count_);
+	int priority = LOG_USER;
 
-	ssize_t ret = ::write(fd_, data.data(), data.capacity());
+	switch (level) {
+	case LogLevel::ERROR:
+		priority |= LOG_ERR;
+		break;
+
+	case LogLevel::WARNING:
+		priority |= LOG_WARNING;
+		break;
+
+	case LogLevel::INFO:
+		priority |= LOG_INFO;
+		break;
+	}
+
+	::syslog(priority, "%s: %s", prefix.c_str(), message.c_str());
+
+	if (level >= LogLevel::INFO) {
+		std::cout << prefix << ": " << message << std::endl;
+	} else {
+		std::cerr << prefix << ": " << message << std::endl;
+	}
+}
+
+int LinuxHIDDevice::send_report(std::vector<uint8_t> &data) {
+	ssize_t ret = ::write(fd_.get(), data.data(), data.capacity());
 	if (ret < 0 || (size_t)ret != data.capacity()) {
-		log(LOG_ERR, "write: " + get_strerror());
+		log(LogLevel::ERROR, "write: " + get_strerror());
 		return EX_IOERR;
 	}
-
-	log(LOG_INFO, "Report sent");
 
 	return EX_OK;
 }
+
+} /* namespace hid_identify */
