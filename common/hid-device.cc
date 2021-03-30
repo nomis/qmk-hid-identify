@@ -32,6 +32,15 @@ static constexpr uint32_t RAW_USAGE_ID = 0x0061;
 static constexpr uint32_t RAW_IN_USAGE_ID = 0x0062;
 static constexpr uint32_t RAW_OUT_USAGE_ID = 0x0063;
 
+int HIDDevice::open() {
+	try {
+		return open(device_info_, reports_);
+	} catch (...) {
+		close();
+		throw;
+	}
+}
+
 int HIDDevice::identify() {
 	int ret = open(device_info_, reports_);
 
@@ -68,6 +77,7 @@ void HIDDevice::close() {
 	device_info_ = {};
 	reports_.clear();
 	report_count_ = 0;
+	clear();
 }
 
 int HIDDevice::is_allowed_device() {

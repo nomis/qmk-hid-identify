@@ -31,9 +31,9 @@ class HIDDevice {
 public:
 	virtual ~HIDDevice() = default;
 
-	virtual int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) = 0;
+	int open();
 	int identify();
-	virtual void close();
+	void close();
 
 	virtual void log(LogLevel level, const std::string &message) = 0;
 
@@ -42,7 +42,9 @@ public:
 
 protected:
 	HIDDevice() = default;
+	virtual int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) = 0;
 	virtual int send_report(std::vector<uint8_t> &data) = 0;
+	virtual void clear() = 0;
 
 private:
 	int is_allowed_device();

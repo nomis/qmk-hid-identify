@@ -173,10 +173,9 @@ std::string LinuxHIDDevice::name() const {
 	return name_;
 }
 
-void LinuxHIDDevice::close() {
+void LinuxHIDDevice::clear() {
 	fd_.clear();
 	name_.clear();
-	HIDDevice::close();
 }
 
 void LinuxHIDDevice::log(LogLevel level, const std::string &message) {

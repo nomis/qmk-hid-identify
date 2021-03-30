@@ -31,14 +31,14 @@ class LinuxHIDDevice: public HIDDevice {
 public:
 	LinuxHIDDevice(const std::string &pathname);
 
-	int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
 	std::string name() const;
-	void close() override;
 
 	void log(LogLevel level, const std::string &message) override;
 
 protected:
+	int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
 	int send_report(std::vector<uint8_t> &data) override;
+	void clear() override;
 
 private:
 	int init_device_info(int fd, USBDeviceInfo &device_info);
