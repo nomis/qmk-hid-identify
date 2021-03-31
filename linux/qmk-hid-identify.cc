@@ -23,7 +23,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sysexits.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -75,38 +74,28 @@ std::initializer_list<uint8_t> os_identity() {
 LinuxHIDDevice::LinuxHIDDevice(const std::string &pathname) : pathname_(pathname) {
 }
 
-int LinuxHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) {
-	if (!fd_) {
-		auto fd = unique_fd(::open(pathname_.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC));
-		if (!fd) {
-			log(LogLevel::ERROR, get_strerror());
-			return EX_NOINPUT;
-		}
-
-		int ret = init_device_info(fd.get(), device_info);
-		if (ret != EX_OK) {
-			return ret;
-		}
-
-		ret = init_reports(fd.get(), reports);
-		if (ret != EX_OK) {
-			return ret;
-		}
-
-		init_name(fd.get());
-
-		fd_ = std::move(fd);
+void LinuxHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) {
+	if (fd_) {
+		return;
 	}
 
-	return EX_OK;
+	fd_ = unique_fd(::open(pathname_.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC));
+	if (!fd_) {
+		log(LogLevel::ERROR, get_strerror());
+		throw UnavailableDevice{};
+	}
+
+	init_device_info(device_info);
+	init_reports(reports);
+	init_name();
 }
 
-int LinuxHIDDevice::init_device_info(int fd, USBDeviceInfo &device_info) {
+void LinuxHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 	struct hidraw_devinfo info{};
 
-	if (::ioctl(fd, HIDIOCGRAWINFO, &info) < 0) {
+	if (::ioctl(fd_.get(), HIDIOCGRAWINFO, &info) < 0) {
 		log(LogLevel::ERROR, "HIDIOCGRAWINFO: " + get_strerror());
-		return EX_OSERR;
+		throw OSError{};
 	}
 
 	device_info = {
@@ -114,32 +103,30 @@ int LinuxHIDDevice::init_device_info(int fd, USBDeviceInfo &device_info) {
 		.product = (uint16_t)info.product,
 		.interface = -1
 	};
-
-	return EX_OK;
 }
 
-int LinuxHIDDevice::init_reports(int fd, std::vector<HIDReport> &reports) {
+void LinuxHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 	struct hidraw_report_descriptor rpt_desc{};
 	int desc_size = 0;
 
-	if (::ioctl(fd, HIDIOCGRDESCSIZE, &desc_size) < 0) {
+	if (::ioctl(fd_.get(), HIDIOCGRDESCSIZE, &desc_size) < 0) {
 		log(LogLevel::ERROR, "HIDIOCGRDESCSIZE: " + get_strerror());
-		return EX_OSERR;
+		throw OSError{};
 	}
 
 	if (desc_size < 0) {
 		log(LogLevel::ERROR, "Report descriptor size is negative (" + std::to_string(desc_size) + ")");
-		return EX_SOFTWARE;
+		throw OSLengthError{};
 	} else if ((unsigned int)desc_size > sizeof(rpt_desc.value)) {
 		log(LogLevel::ERROR, "Report descriptor size too large (" + std::to_string(desc_size)
 			+ " > " + std::to_string(sizeof(rpt_desc.value)) + ")");
-		return EX_SOFTWARE;
+		throw OSLengthError{};
 	}
 
 	rpt_desc.size = desc_size;
-	if (::ioctl(fd, HIDIOCGRDESC, &rpt_desc) < 0) {
+	if (::ioctl(fd_.get(), HIDIOCGRDESC, &rpt_desc) < 0) {
 		log(LogLevel::ERROR, "HIDIOCGRDESC: " + get_strerror());
-		return EX_OSERR;
+		throw OSError{};
 	}
 
 	unsigned int pos = 0;
@@ -151,17 +138,16 @@ int LinuxHIDDevice::init_reports(int fd, std::vector<HIDReport> &reports) {
 		if (ret == 0) {
 			reports.emplace_back(hid_report);
 		} else if (ret == -1) {
-			return EX_DATAERR;
+			log(LogLevel::ERROR, "Malformed report descriptor");
+			throw MalformedHIDReportDescriptor{};
 		}
 	} while (ret != 0);
-
-	return EX_OK;
 }
 
-void LinuxHIDDevice::init_name(int fd) {
+void LinuxHIDDevice::init_name() {
 	std::vector<char> buf(256);
 
-	if (::ioctl(fd, HIDIOCGRAWPHYS(buf.size()), buf.data()) < 0) {
+	if (::ioctl(fd_.get(), HIDIOCGRAWPHYS(buf.size()), buf.data()) < 0) {
 		log(LogLevel::WARNING, "HIDIOCGRAWPHYS: " + get_strerror());
 		name_.clear();
 	} else {
@@ -169,11 +155,7 @@ void LinuxHIDDevice::init_name(int fd) {
 	}
 }
 
-std::string LinuxHIDDevice::name() const {
-	return name_;
-}
-
-void LinuxHIDDevice::clear() {
+void LinuxHIDDevice::clear() noexcept {
 	fd_.clear();
 	name_.clear();
 }
@@ -210,14 +192,12 @@ void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
 	}
 }
 
-int LinuxHIDDevice::send_report(std::vector<uint8_t> &data) {
+void LinuxHIDDevice::send_report(std::vector<uint8_t> &data) {
 	ssize_t ret = ::write(fd_.get(), data.data(), data.capacity());
 	if (ret < 0 || (size_t)ret != data.capacity()) {
 		log(LogLevel::ERROR, "write: " + get_strerror());
-		return EX_IOERR;
+		throw IOError{};
 	}
-
-	return EX_OK;
 }
 
 } /* namespace hid_identify */

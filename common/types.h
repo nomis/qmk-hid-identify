@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstdint>
+#include <exception>
 #include <vector>
 
 namespace hid_identify {
@@ -58,5 +59,59 @@ public:
 	std::vector<HIDCollection> out;
 	std::vector<HIDCollection> feature;
 };
+
+class Exception: public std::exception {
+public:
+	virtual ~Exception() = default;
+
+protected:
+	Exception() noexcept = default;
+};
+
+class OSError: public Exception {
+public:
+	OSError() noexcept = default;
+};
+
+class OSLengthError: public OSError {
+public:
+	OSLengthError() noexcept = default;
+};
+
+class IOError: public Exception {
+public:
+	IOError() noexcept = default;
+};
+
+class IOLengthError: public IOError {
+public:
+	IOLengthError() noexcept = default;
+};
+
+class UnsupportedDevice: public Exception {
+public:
+	UnsupportedDevice() noexcept = default;
+};
+
+class UnavailableDevice: public UnsupportedDevice {
+public:
+	UnavailableDevice() noexcept = default;
+};
+
+class DisallowedUSBDevice: public UnsupportedDevice {
+public:
+	DisallowedUSBDevice() noexcept = default;
+};
+
+class MalformedHIDReportDescriptor: public UnsupportedDevice {
+public:
+	MalformedHIDReportDescriptor() noexcept = default;
+};
+
+class UnsupportedHIDReportUsage: public UnsupportedDevice {
+public:
+	UnsupportedHIDReportUsage() noexcept = default;
+};
+
 
 } // namespace hid_identify

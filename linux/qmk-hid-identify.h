@@ -29,21 +29,19 @@ namespace hid_identify {
 
 class LinuxHIDDevice: public HIDDevice {
 public:
-	LinuxHIDDevice(const std::string &pathname);
-
-	std::string name() const;
+	explicit LinuxHIDDevice(const std::string &pathname);
 
 	void log(LogLevel level, const std::string &message) override;
 
 protected:
-	int open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
-	int send_report(std::vector<uint8_t> &data) override;
-	void clear() override;
+	void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
+	void send_report(std::vector<uint8_t> &data) override;
+	void clear() noexcept override;
 
 private:
-	int init_device_info(int fd, USBDeviceInfo &device_info);
-	int init_reports(int fd, std::vector<HIDReport> &reports);
-	void init_name(int fd);
+	void init_device_info(USBDeviceInfo &device_info);
+	void init_reports(std::vector<HIDReport> &reports);
+	void init_name();
 
 	const std::string pathname_;
 	unique_fd fd_;

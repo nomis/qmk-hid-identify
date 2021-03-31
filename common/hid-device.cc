@@ -17,8 +17,6 @@
 */
 #include "hid-device.h"
 
-#include <sysexits.h>
-
 #include <cstdint>
 #include <string>
 
@@ -32,65 +30,41 @@ static constexpr uint32_t RAW_USAGE_ID = 0x0061;
 static constexpr uint32_t RAW_IN_USAGE_ID = 0x0062;
 static constexpr uint32_t RAW_OUT_USAGE_ID = 0x0063;
 
-int HIDDevice::open() {
+void HIDDevice::open() {
 	try {
-		return open(device_info_, reports_);
+		open(device_info_, reports_);
 	} catch (...) {
 		close();
 		throw;
 	}
 }
 
-int HIDDevice::identify() {
-	int ret = open(device_info_, reports_);
-
-	if (ret != EX_OK) {
-		return ret;
-	}
-
-	ret = is_allowed_device();
-
-	if (ret != EX_OK) {
-		if (ret == EX_UNAVAILABLE) {
-			log(LogLevel::ERROR, "Device not allowed");
-		}
-
-		return ret;
-	}
-
-	ret = is_qmk_device();
-
-	if (ret != EX_OK) {
-		if (ret == EX_UNAVAILABLE) {
-			log(LogLevel::ERROR, "Not a QMK raw HID device interface");
-		} else if (ret == EX_DATAERR) {
-			log(LogLevel::ERROR, "Malformed report descriptor");
-		}
-
-		return ret;
-	}
-
-	return send_report();
+void HIDDevice::identify() {
+	open(device_info_, reports_);
+	check_device_allowed();
+	check_device_reports();
+	send_report();
 }
 
-void HIDDevice::close() {
+void HIDDevice::close() noexcept {
 	device_info_ = {};
 	reports_.clear();
 	report_count_ = 0;
 	clear();
 }
 
-int HIDDevice::is_allowed_device() {
+void HIDDevice::check_device_allowed() {
 	if (device_info_.interface == -1 || device_info_.interface == 1) {
 		if (usb_device_allowed(device_info_.vendor, device_info_.product)) {
-			return EX_OK;
+			return;
 		}
 	}
 
-	return EX_UNAVAILABLE;
+	log(LogLevel::ERROR, "Device not allowed");
+	throw DisallowedUSBDevice{};
 }
 
-int HIDDevice::is_qmk_device() {
+void HIDDevice::check_device_reports() {
 	for (auto& report : reports_) {
 		if (report.usage_page == RAW_USAGE_PAGE
 				&& report.usage == RAW_USAGE_ID
@@ -111,15 +85,16 @@ int HIDDevice::is_qmk_device() {
 					&& out.has_size && out.size == 8 /* bits */
 					&& out.has_count && out.count > 0) {
 				report_count_ = out.count;
-				return EX_OK;
+				return;
 			}
 		}
 	}
 
-	return EX_UNAVAILABLE;
+	log(LogLevel::ERROR, "Not a QMK raw HID device interface");
+	throw UnsupportedHIDReportUsage{};
 }
 
-int HIDDevice::send_report() {
+void HIDDevice::send_report() {
 	std::vector<uint8_t> data {
 		/* Report ID */
 		0x00,
@@ -134,17 +109,13 @@ int HIDDevice::send_report() {
 	if (report_count_ < data.size() - 1) {
 		log(LogLevel::ERROR, "Report count too small for message (" + std::to_string(report_count_)
 			+ " < " + std::to_string(data.size() - 1) + ")");
-		return EX_IOERR;
+		throw IOLengthError{};
 	}
 
 	data.reserve(1 + report_count_);
 
-	int ret = send_report(data);
-	if (ret == EX_OK) {
-		log(LogLevel::INFO, "Report sent");
-	}
-
-	return ret;
+	send_report(data);
+	log(LogLevel::INFO, "Report sent");
 }
 
 } // namespace hid_identify

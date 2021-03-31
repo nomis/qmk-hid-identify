@@ -22,20 +22,36 @@
 
 #include "qmk-hid-identify.h"
 
+using namespace hid_identify;
+
 int main(int argc, char *argv[]) {
-	int exit_ret = EX_OK;
+	int exit_ret = 0;
 
 	if (argc < 2) {
 		std::cout << "Usage: " << argv[0] << " <hidraw device>..." << std::endl;
 		return EX_USAGE;
 	}
 
-	for (int i = 1; i < argc; i++) {
-		int ret = hid_identify::LinuxHIDDevice(argv[i]).identify();
-
-		if (exit_ret == EX_OK) {
-			exit_ret = ret;
+	try {
+		for (int i = 1; i < argc; i++) {
+			try {
+				LinuxHIDDevice(argv[i]).identify();
+			} catch (const UnavailableDevice&) {
+				exit_ret = exit_ret ? exit_ret : EX_NOINPUT;
+			} catch (const MalformedHIDReportDescriptor&) {
+				exit_ret = exit_ret ? exit_ret : EX_DATAERR;
+			} catch (const OSError&) {
+				exit_ret = exit_ret ? exit_ret : EX_OSERR;
+			} catch (const IOError&) {
+				exit_ret = exit_ret ? exit_ret : EX_IOERR;
+			} catch (const UnsupportedDevice&) {
+				exit_ret = exit_ret ? exit_ret : EX_UNAVAILABLE;
+			} catch (const Exception&) {
+				exit_ret = exit_ret ? exit_ret : EX_SOFTWARE;
+			}
 		}
+	} catch (...) {
+		throw;
 	}
 
 	return exit_ret;
