@@ -94,7 +94,7 @@ std::string last_error() {
 	DWORD error = GetLastError();
 	std::vector<char> text(2 + (sizeof(DWORD) * 2) + 1);
 
-	std::snprintf(text.data(), text.size(), "%#08lX", error);
+	std::snprintf(text.data(), text.size(), "0x%08lX", error);
 
 	return {text.data()};
 }
