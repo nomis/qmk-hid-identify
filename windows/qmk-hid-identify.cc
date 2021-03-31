@@ -65,14 +65,18 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 }
 
 int16_t WindowsHIDDevice::interface_number() {
-	static const win32::native_string tag = TEXT("&MI_");
+	static const win32::native_string tag_uc = TEXT("&MI_");
+	static const win32::native_string tag_lc = TEXT("&mi_");
 
-	auto pos = filename_.find(tag);
+	auto pos = filename_.find(tag_uc);
 	if (pos == win32::native_string::npos) {
-		return -1;
+		pos = filename_.find(tag_lc);
+		if (pos == win32::native_string::npos) {
+			return -1;
+		}
 	}
 
-	pos += tag.length();
+	pos += tag_uc.length();
 	if (filename_.length() - pos < 2) {
 		return -1;
 	}
@@ -108,16 +112,19 @@ std::vector<HIDCollection> WindowsHIDDevice::caps_to_collections(
 		PHIDP_PREPARSED_DATA preparsed_data) {
 	std::vector<HIDP_VALUE_CAPS> vcaps(len);
 
-	if (::HidP_GetSpecificValueCaps(report_type, usage_page, 0, 0,
-			vcaps.data(), &len, preparsed_data) != HIDP_STATUS_SUCCESS) {
+	NTSTATUS ret = ::HidP_GetSpecificValueCaps(report_type, usage_page,
+			0, 0, vcaps.data(), &len, preparsed_data);
+	if (ret == HIDP_STATUS_USAGE_NOT_FOUND) {
+		return {};
+	} else if (ret != HIDP_STATUS_SUCCESS) {
 		log(LogLevel::Error, "HidP_GetSpecificValueCaps failed for report type "
-			+ std::to_string(report_type));
+			+ std::to_string(report_type) + ": " + win32::hex_error(ret));
 		throw OSError{};
 	}
 
 	std::vector<HIDCollection> collections;
 
-	for (size_t i = 0; i < len; len++) {
+	for (size_t i = 0; i < len; i++) {
 		HIDCollection collection{};
 
 		if (vcaps[i].IsRange) {
@@ -148,7 +155,7 @@ std::vector<HIDCollection> WindowsHIDDevice::caps_to_collections(
 void WindowsHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 	::SetLastError(0);
 	auto preparsed_data = win32::wrap_output<PHIDP_PREPARSED_DATA, ::HidD_FreePreparsedData>(
-		[&] (PHIDP_PREPARSED_DATA data) {
+		[&] (PHIDP_PREPARSED_DATA &data) {
 			return ::HidD_GetPreparsedData(handle_.get(), &data);
 		});
 	if (!preparsed_data) {
@@ -157,8 +164,9 @@ void WindowsHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 	}
 
 	HIDP_CAPS caps{};
-	if (::HidP_GetCaps(preparsed_data.get(), &caps) != HIDP_STATUS_SUCCESS) {
-		log(LogLevel::Error, "HidP_GetCaps failed");
+	NTSTATUS ret = ::HidP_GetCaps(preparsed_data.get(), &caps);
+	if (ret != HIDP_STATUS_SUCCESS) {
+		log(LogLevel::Error, "HidP_GetCaps failed: " + win32::hex_error(ret));
 		throw OSError{};
 	}
 

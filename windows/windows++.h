@@ -69,7 +69,7 @@ using handle_t = wrapped_ptr<remove_pointer_t<HANDLE>, ::CloseHandle>;
 handle_t wrap_handle(HANDLE handle);
 
 template <typename T>
-using output_func_t = std::function<BOOLEAN(T data)>;
+using output_func_t = std::function<BOOLEAN(T &data)>;
 
 template <typename T, auto Deleter>
 wrapped_ptr<remove_pointer_t<T>, Deleter> wrap_output(
@@ -162,6 +162,7 @@ inline bool isxdigit(native_char ch) {
 
 std::vector<native_string> reg_multi_sz(const native_string &text);
 
+std::string hex_error(DWORD error);
 std::string last_error();
 
 } /* namespace win32 */

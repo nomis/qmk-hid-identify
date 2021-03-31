@@ -90,13 +90,16 @@ std::vector<native_string> reg_multi_sz(const native_string &text) {
 	return values;
 }
 
-std::string last_error() {
-	DWORD error = GetLastError();
+std::string hex_error(DWORD error) {
 	std::vector<char> text(2 + (sizeof(DWORD) * 2) + 1);
 
 	std::snprintf(text.data(), text.size(), "0x%08lX", error);
 
 	return {text.data()};
+}
+
+std::string last_error() {
+	return hex_error(GetLastError());
 }
 
 } /* namespace win32 */
