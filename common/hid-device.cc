@@ -115,7 +115,7 @@ void HIDDevice::send_report() {
 		throw IOLengthError{};
 	}
 
-	data.reserve(1 + report_count_);
+	data.resize(1 + report_count_);
 
 	send_report(data);
 	log(LogLevel::Info, "Report sent");

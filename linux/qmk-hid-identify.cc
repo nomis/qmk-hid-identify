@@ -191,8 +191,8 @@ void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
 }
 
 void LinuxHIDDevice::send_report(std::vector<uint8_t> &data) {
-	ssize_t ret = ::write(fd_.get(), data.data(), data.capacity());
-	if (ret < 0 || (size_t)ret != data.capacity()) {
+	ssize_t ret = ::write(fd_.get(), data.data(), data.size());
+	if (ret < 0 || (size_t)ret != data.size()) {
 		log(LogLevel::Error, "write: " + get_strerror());
 		throw IOError{};
 	}

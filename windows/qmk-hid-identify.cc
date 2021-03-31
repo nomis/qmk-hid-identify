@@ -201,7 +201,13 @@ void WindowsHIDDevice::log(LogLevel level, const std::string &message) {
 
 void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	// Minimum length is OutputReportByteLength (which includes the Report ID)
-	data.reserve(report_length_);
+	if (report_length_ < data.size()) {
+		log(LogLevel::Error, "Report length too small for message (" + std::to_string(report_length_)
+			+ " < " + std::to_string(data.size()) + ")");
+		throw IOLengthError{};
+	}
+
+	data.resize(report_length_);
 
 	::SetLastError(0);
 	auto event = win32::wrap_handle(::CreateEvent(nullptr, true, false, nullptr));
@@ -215,7 +221,7 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	overlapped.hEvent = event.get();
 
 	::SetLastError(0);
-	if (!::WriteFile(handle_.get(), data.data(), data.capacity(), nullptr, &overlapped)) {
+	if (!::WriteFile(handle_.get(), data.data(), data.size(), nullptr, &overlapped)) {
 		if (::GetLastError() != ERROR_IO_PENDING) {
 			log(LogLevel::Error, "WriteFile returned " + win32::last_error());
 			throw OSError{};
@@ -234,9 +240,9 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	DWORD written = 0;
 	::SetLastError(0);
 	if (::GetOverlappedResult(handle_.get(), &overlapped, &written, true)) {
-		if (written != data.capacity()) {
+		if (written != data.size()) {
 			log(LogLevel::Error, "Write completed with only " + std::to_string(written)
-				+ " of " + std::to_string(data.capacity()) + " bytes");
+				+ " of " + std::to_string(data.size()) + " bytes");
 			throw IOError{};
 		}
 	} else {
