@@ -24,30 +24,30 @@
 namespace hid_identify {
 
 enum class LogLevel {
-	ERROR,
-	WARNING,
-	INFO,
+	Error,
+	Warning,
+	Info,
 };
 
 struct USBDeviceInfo {
 public:
 	uint16_t vendor;
 	uint16_t product;
-	int16_t interface;
+	int16_t interface_number;
 };
 
 struct HIDCollection {
 public:
-	uint32_t usage;
 	bool has_usage;
-	uint32_t minimum;
+	uint32_t usage;
 	bool has_minimum;
-	uint32_t maximum;
+	uint32_t minimum;
 	bool has_maximum;
-	uint32_t count;
+	uint32_t maximum;
 	bool has_count;
-	uint32_t size;
+	uint32_t count;
 	bool has_size;
+	uint32_t size;
 };
 
 struct HIDReport {
@@ -101,6 +101,11 @@ public:
 class DisallowedUSBDevice: public UnsupportedDevice {
 public:
 	DisallowedUSBDevice() noexcept = default;
+};
+
+class UnsupportedHIDReportDescriptor: public UnsupportedDevice {
+public:
+	UnsupportedHIDReportDescriptor() noexcept = default;
 };
 
 class MalformedHIDReportDescriptor: public UnsupportedDevice {

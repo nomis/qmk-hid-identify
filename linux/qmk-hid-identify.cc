@@ -42,7 +42,8 @@
 namespace hid_identify {
 
 /* POSIX */
-static inline __attribute__((unused)) const char *call_strerror_r(std::vector<char> &buf, int (*func)(int, char *, size_t)) {
+static inline __attribute__((unused)) const char *call_strerror_r(
+		std::vector<char> &buf, int (*func)(int, char *, size_t)) {
 	if (func(errno, buf.data(), buf.size()) == 0) {
 		return buf.data();
 	} else {
@@ -51,7 +52,8 @@ static inline __attribute__((unused)) const char *call_strerror_r(std::vector<ch
 }
 
 /* GNU */
-static inline __attribute__((unused)) const char *call_strerror_r(std::vector<char> &buf, char *(*func)(int, char *, size_t)) {
+static inline __attribute__((unused)) const char *call_strerror_r(
+		std::vector<char> &buf, char *(*func)(int, char *, size_t)) {
 	return func(errno, buf.data(), buf.size());
 }
 
@@ -80,7 +82,7 @@ void LinuxHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &re
 
 	fd_ = unique_fd(::open(pathname_.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC));
 	if (!fd_) {
-		log(LogLevel::ERROR, get_strerror());
+		log(LogLevel::Error, get_strerror());
 		throw UnavailableDevice{};
 	}
 
@@ -93,7 +95,7 @@ void LinuxHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 	struct hidraw_devinfo info{};
 
 	if (::ioctl(fd_.get(), HIDIOCGRAWINFO, &info) < 0) {
-		log(LogLevel::ERROR, "HIDIOCGRAWINFO: " + get_strerror());
+		log(LogLevel::Error, "HIDIOCGRAWINFO: " + get_strerror());
 		throw OSError{};
 	}
 
@@ -105,22 +107,22 @@ void LinuxHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 	int desc_size = 0;
 
 	if (::ioctl(fd_.get(), HIDIOCGRDESCSIZE, &desc_size) < 0) {
-		log(LogLevel::ERROR, "HIDIOCGRDESCSIZE: " + get_strerror());
+		log(LogLevel::Error, "HIDIOCGRDESCSIZE: " + get_strerror());
 		throw OSError{};
 	}
 
 	if (desc_size < 0) {
-		log(LogLevel::ERROR, "Report descriptor size is negative (" + std::to_string(desc_size) + ")");
+		log(LogLevel::Error, "Report descriptor size is negative (" + std::to_string(desc_size) + ")");
 		throw OSLengthError{};
 	} else if ((unsigned int)desc_size > sizeof(rpt_desc.value)) {
-		log(LogLevel::ERROR, "Report descriptor size too large (" + std::to_string(desc_size)
+		log(LogLevel::Error, "Report descriptor size too large (" + std::to_string(desc_size)
 			+ " > " + std::to_string(sizeof(rpt_desc.value)) + ")");
 		throw OSLengthError{};
 	}
 
 	rpt_desc.size = desc_size;
 	if (::ioctl(fd_.get(), HIDIOCGRDESC, &rpt_desc) < 0) {
-		log(LogLevel::ERROR, "HIDIOCGRDESC: " + get_strerror());
+		log(LogLevel::Error, "HIDIOCGRDESC: " + get_strerror());
 		throw OSError{};
 	}
 
@@ -131,9 +133,9 @@ void LinuxHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 
 		ret = get_next_hid_usage(rpt_desc.value, rpt_desc.size, &pos, hid_report);
 		if (ret == 0) {
-			reports.emplace_back(hid_report);
+			reports.emplace_back(std::move(hid_report));
 		} else if (ret == -1) {
-			log(LogLevel::ERROR, "Malformed report descriptor");
+			log(LogLevel::Error, "Malformed report descriptor");
 			throw MalformedHIDReportDescriptor{};
 		}
 	} while (ret != 0);
@@ -143,16 +145,17 @@ void LinuxHIDDevice::init_name() {
 	std::vector<char> buf(256);
 
 	if (::ioctl(fd_.get(), HIDIOCGRAWPHYS(buf.size()), buf.data()) < 0) {
-		log(LogLevel::WARNING, "HIDIOCGRAWPHYS: " + get_strerror());
+		log(LogLevel::Warning, "HIDIOCGRAWPHYS: " + get_strerror());
 		name_.clear();
 	} else {
 		name_ = buf.data();
 	}
 }
 
-void LinuxHIDDevice::clear() noexcept {
+void LinuxHIDDevice::reset() noexcept {
 	fd_.clear();
 	name_.clear();
+	report_count_ = 0;
 }
 
 void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
@@ -165,22 +168,22 @@ void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
 	int priority = LOG_USER;
 
 	switch (level) {
-	case LogLevel::ERROR:
+	case LogLevel::Error:
 		priority |= LOG_ERR;
 		break;
 
-	case LogLevel::WARNING:
+	case LogLevel::Warning:
 		priority |= LOG_WARNING;
 		break;
 
-	case LogLevel::INFO:
+	case LogLevel::Info:
 		priority |= LOG_INFO;
 		break;
 	}
 
 	::syslog(priority, "%s: %s", prefix.c_str(), message.c_str());
 
-	if (level >= LogLevel::INFO) {
+	if (level >= LogLevel::Info) {
 		std::cout << prefix << ": " << message << std::endl;
 	} else {
 		std::cerr << prefix << ": " << message << std::endl;
@@ -190,7 +193,7 @@ void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
 void LinuxHIDDevice::send_report(std::vector<uint8_t> &data) {
 	ssize_t ret = ::write(fd_.get(), data.data(), data.capacity());
 	if (ret < 0 || (size_t)ret != data.capacity()) {
-		log(LogLevel::ERROR, "write: " + get_strerror());
+		log(LogLevel::Error, "write: " + get_strerror());
 		throw IOError{};
 	}
 }

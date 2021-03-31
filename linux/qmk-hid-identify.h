@@ -36,7 +36,7 @@ public:
 protected:
 	void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
 	void send_report(std::vector<uint8_t> &data) override;
-	void clear() noexcept override;
+	void reset() noexcept override;
 
 private:
 	void init_device_info(USBDeviceInfo &device_info);

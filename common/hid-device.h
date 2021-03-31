@@ -44,7 +44,7 @@ protected:
 	HIDDevice() = default;
 	virtual void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) = 0;
 	virtual void send_report(std::vector<uint8_t> &data) = 0;
-	virtual void clear() noexcept = 0;
+	virtual void reset() noexcept;
 
 private:
 	void check_device_allowed();
