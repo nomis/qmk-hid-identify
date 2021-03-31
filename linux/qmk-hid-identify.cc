@@ -33,7 +33,6 @@
 #include <initializer_list>
 #include <iostream>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "../common/hid-device.h"
@@ -98,11 +97,7 @@ void LinuxHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 		throw OSError{};
 	}
 
-	device_info = {
-		.vendor = (uint16_t)info.vendor,
-		.product = (uint16_t)info.product,
-		.interface = -1
-	};
+	device_info = { (uint16_t)info.vendor, (uint16_t)info.product, -1 };
 }
 
 void LinuxHIDDevice::init_reports(std::vector<HIDReport> &reports) {
