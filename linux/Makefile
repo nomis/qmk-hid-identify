@@ -1,8 +1,6 @@
 .PHONY: all clean
 
-COMPILER_FLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -pedantic -pedantic-errors
-CFLAGS = $(COMPILER_FLAGS) -std=c99
-CXXFLAGS = $(COMPILER_FLAGS) -std=c++17
+CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -pedantic -pedantic-errors -std=c++17
 LDFLAGS = -flto
 LDLIBS = -lstdc++
 
