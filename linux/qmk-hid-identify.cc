@@ -30,7 +30,6 @@
 #include <linux/input.h>
 #include <linux/hidraw.h>
 
-#include <initializer_list>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -68,7 +67,7 @@ static std::string get_strerror() {
 	}
 }
 
-std::initializer_list<uint8_t> os_identity() {
+std::vector<uint8_t> os_identity() {
 	return {'L', 'N', 'X', 0};
 }
 

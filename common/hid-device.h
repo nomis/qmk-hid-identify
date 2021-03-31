@@ -17,7 +17,6 @@
 */
 #pragma once
 
-#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -25,7 +24,7 @@
 
 namespace hid_identify {
 
-std::initializer_list<uint8_t> os_identity();
+std::vector<uint8_t> os_identity();
 
 class HIDDevice {
 public:

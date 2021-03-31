@@ -27,7 +27,6 @@ extern "C" {
 #include <algorithm>
 #include <cctype>
 #include <cwctype>
-#include <initializer_list>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -39,8 +38,8 @@ extern "C" {
 
 namespace hid_identify {
 
-std::initializer_list<uint8_t> os_identity() {
-	return {'W', 'I', 'N', 0};
+std::vector<uint8_t> os_identity() {
+	return {'W', 'I', 'N', '\0'};
 }
 
 WindowsHIDDevice::WindowsHIDDevice(const win32::native_string &filename)

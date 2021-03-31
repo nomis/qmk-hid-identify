@@ -107,7 +107,8 @@ void HIDDevice::send_report() {
 	};
 
 	/* OS */
-	data.insert(data.end(), os_identity());
+	auto identity = os_identity();
+	data.insert(data.end(), identity.begin(), identity.end());
 
 	if (report_count_ < data.size() - 1) {
 		log(LogLevel::Error, "Report count too small for message (" + std::to_string(report_count_)
