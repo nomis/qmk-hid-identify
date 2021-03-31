@@ -10,7 +10,7 @@ all: qmk-hid-identify
 
 qmk-hid-identify: main.o qmk-hid-identify.o hid-report-desc.o hid-device.o usb-vid-pid.o
 
-main.o: qmk-hid-identify.h
+main.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h unique-fd.h
 qmk-hid-identify.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h hid-report-desc.h unique-fd.h
 hid-report-desc.o: hid-report-desc.h ../common/types.h
 
@@ -20,7 +20,7 @@ usb-vid-pid.o: ../common/usb-vid-pid.cc ../common/usb-vid-pid.h
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
 #qmk-hid-identify.h: ../common/hid-device.h ../common/types.h unique-fd.h
-#id-report-desc.h: ../common/types.h
+#hid-report-desc.h: ../common/types.h
 #../common/hid-device.h: ../common/types.h
 #../common/types.h:
 #../common/usb-vid-pid.h:

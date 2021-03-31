@@ -21,6 +21,7 @@
 #include <string>
 
 #include "qmk-hid-identify.h"
+#include "../common/types.h"
 
 using namespace hid_identify;
 
