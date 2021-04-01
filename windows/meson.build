@@ -28,6 +28,12 @@ endif
 add_project_arguments('-DNTDDI_VERSION=0x0A000000', language: 'cpp')
 add_project_arguments('-D_WIN32_WINNT=0x0A00', language: 'cpp')
 
+add_project_arguments('-DNOGDI', language: 'cpp')
+# Workaround old headers that haven't been updated to handle NOGDI properly
+add_project_arguments('-DLPLOGFONTA=LPVOID', language: 'cpp')
+add_project_arguments('-DLPLOGFONTW=LPVOID', language: 'cpp')
+add_project_arguments('-DLPDEVMODE=LPVOID', language: 'cpp')
+
 cpp_libs = [
 	cpp.find_library('setupapi'),
 	cpp.find_library('hid'),
