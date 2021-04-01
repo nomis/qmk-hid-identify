@@ -1,27 +1,50 @@
-.PHONY: all clean
+.PHONY: all debug compile debug-compile check analyse clean distclean install uninstall
 
-CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -pedantic -pedantic-errors -std=c++17
-LDFLAGS = -flto
-LDLIBS = -lstdc++
+BUILD_DIR=build
+RELEASE_DIR=$(BUILD_DIR)/release
+DEBUG_DIR=$(BUILD_DIR)/debug
 
-all: qmk-hid-identify
+ifeq ($(V),1)
+	NINJA=ninja -v
+else
+	NINJA=ninja
+endif
 
-qmk-hid-identify: main.o qmk-hid-identify.o hid-report-desc.o hid-device.o usb-vid-pid.o
+all: compile
+debug: debug-compile
 
-main.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h unique-fd.h
-qmk-hid-identify.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h hid-report-desc.h unique-fd.h
-hid-report-desc.o: hid-report-desc.h ../common/types.h
+$(BUILD_DIR)/:
+	mkdir $(BUILD_DIR)/
+$(RELEASE_DIR)/: | $(BUILD_DIR)/
+	rm -rf "$(RELEASE_DIR)/"
+	mkdir $(RELEASE_DIR)/
+	meson --buildtype=release $(RELEASE_DIR)/ -Db_lto=true $(MESON_OPTS) || (rm -rf "$(RELEASE_DIR)/"; false)
+$(DEBUG_DIR)/: | $(BUILD_DIR)/
+	rm -rf "$(DEBUG_DIR)/"
+	mkdir $(DEBUG_DIR)/
+	meson --buildtype=debug $(DEBUG_DIR)/ $(MESON_OPTS) || (rm -rf "$(DEBUG_DIR)/"; false)
 
-hid-device.o: ../common/hid-device.cc ../common/hid-device.h ../common/types.h ../common/usb-vid-pid.h
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
-usb-vid-pid.o: ../common/usb-vid-pid.cc ../common/usb-vid-pid.h
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+compile: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/
+debug-compile: | $(DEBUG_DIR)/
+	$(NINJA) -C $(DEBUG_DIR)/
 
-#qmk-hid-identify.h: ../common/hid-device.h ../common/types.h unique-fd.h
-#hid-report-desc.h: ../common/types.h
-#../common/hid-device.h: ../common/types.h
-#../common/types.h:
-#../common/usb-vid-pid.h:
+analyse: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/ cppcheck
 
 clean:
-	rm -f -- qmk-hid-identify *.o
+ifneq ($(wildcard $(RELEASE_DIR)/),)
+	$(NINJA) -C $(RELEASE_DIR)/ clean
+endif
+ifneq ($(wildcard $(DEBUG_DIR)/),)
+	$(NINJA) -C $(DEBUG_DIR)/ clean
+endif
+
+distclean:
+	rm -rf $(BUILD_DIR)/
+
+install: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/ install
+
+uninstall: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/ uninstall

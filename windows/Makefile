@@ -1,32 +1,56 @@
-.PHONY: all clean
+.PHONY: all debug compile debug-compile check analyse clean distclean install uninstall
 
-CC = x86_64-w64-mingw32-gcc
-CXX = x86_64-w64-mingw32-g++
-LD = $(CC)
+BUILD_DIR=build
+RELEASE_DIR=$(BUILD_DIR)/release
+DEBUG_DIR=$(BUILD_DIR)/debug
 
-CXXFLAGS = -O2 -g -Wall -Wextra -Wshadow -Werror -pedantic -pedantic-errors -DUNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -std=c++17
-LDFLAGS = -flto -Wl,-subsystem,windows
-LDLIBS = -lstdc++ -lsetupapi -lhid
+ifeq ($(V),1)
+	NINJA=ninja -v
+else
+	NINJA=ninja
+endif
 
-all: qmk-hid-identify.exe
+ifneq ($(OS),Windows_NT)
+	MESON_CROSS=--cross cross64.ini
+else
+	MESON_CROSS=
+endif
 
-qmk-hid-identify.exe: main.o windows++.o qmk-hid-identify.o hid-device.o usb-vid-pid.o
-	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+all: compile
+debug: debug-compile
 
-main.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h windows++.h
-windows++.o: windows++.h
-qmk-hid-identify.o: qmk-hid-identify.h ../common/hid-device.h ../common/types.h windows++.h
+$(BUILD_DIR)/:
+	mkdir $(BUILD_DIR)/
+$(RELEASE_DIR)/: | $(BUILD_DIR)/
+	rm -rf "$(RELEASE_DIR)/"
+	mkdir $(RELEASE_DIR)/
+	meson --buildtype=release $(RELEASE_DIR)/ -Db_lto=true $(MESON_CROSS) $(MESON_OPTS) || (rm -rf "$(RELEASE_DIR)/"; false)
+$(DEBUG_DIR)/: | $(BUILD_DIR)/
+	rm -rf "$(DEBUG_DIR)/"
+	mkdir $(DEBUG_DIR)/
+	meson --buildtype=debug $(DEBUG_DIR)/ $(MESON_CROSS) $(MESON_OPTS) || (rm -rf "$(DEBUG_DIR)/"; false)
 
-hid-device.o: ../common/hid-device.cc ../common/hid-device.h ../common/types.h ../common/usb-vid-pid.h
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
-usb-vid-pid.o: ../common/usb-vid-pid.cc ../common/usb-vid-pid.h
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+compile: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/
+debug-compile: | $(DEBUG_DIR)/
+	$(NINJA) -C $(DEBUG_DIR)/
 
-#qmk-hid-identify.h: ../common/hid-device.h ../common/types.h windows++.h
-#hid-report-desc.h: ../common/types.h
-#../common/hid-device.h: ../common/types.h
-#../common/types.h:
-#../common/usb-vid-pid.h:
+analyse: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/ cppcheck
 
 clean:
-	rm -f -- qmk-hid-identify.exe *.o
+ifneq ($(wildcard $(RELEASE_DIR)/),)
+	$(NINJA) -C $(RELEASE_DIR)/ clean
+endif
+ifneq ($(wildcard $(DEBUG_DIR)/),)
+	$(NINJA) -C $(DEBUG_DIR)/ clean
+endif
+
+distclean:
+	rm -rf $(BUILD_DIR)/
+
+install: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/ install
+
+uninstall: | $(RELEASE_DIR)/
+	$(NINJA) -C $(RELEASE_DIR)/ uninstall
