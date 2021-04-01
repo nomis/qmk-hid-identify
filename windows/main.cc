@@ -74,7 +74,7 @@ static std::vector<win32::native_string> enumerate_devices() {
 		}
 
 		if (install_state.size() != sizeof(DWORD)
-				|| *((DWORD*)install_state.get()) != CM_INSTALL_STATE_INSTALLED) {
+				|| *(reinterpret_cast<DWORD*>(install_state.get())) != CM_INSTALL_STATE_INSTALLED) {
 			continue;
 		}
 

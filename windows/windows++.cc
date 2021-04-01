@@ -55,7 +55,7 @@ native_string ascii_to_native_string(const std::string &text) {
 }
 
 native_string to_native_string(const sized_ptr<BYTE, DWORD> &data) {
-	return native_string{(native_char *)data.get(), data.size()/2};
+	return native_string{reinterpret_cast<native_char*>(data.get()), data.size()/2};
 }
 #else
 std::string to_string(const native_char *text, ssize_t len) {
@@ -71,7 +71,7 @@ native_string ascii_to_native_string(const std::string &text) {
 }
 
 native_string to_native_string(const sized_ptr<BYTE, DWORD> &data) {
-	return native_string{(native_char *)data.get(), data.size()};
+	return native_string{reinterpret_cast<native_char*>(data.get()), data.size()};
 }
 #endif
 
