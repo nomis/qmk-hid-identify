@@ -24,6 +24,10 @@ extern "C" {
 #include <hidpi.h>
 }
 
+#ifndef NOGDI
+#	undef ERROR
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <cwctype>
@@ -55,7 +59,7 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 	handle_ = win32::wrap_handle(::CreateFile(filename_.c_str(), GENERIC_WRITE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr));
 	if (!handle_) {
-		log(LogLevel::Error, "CreateFile returned " + win32::last_error());
+		log(LogLevel::ERROR, "CreateFile returned " + win32::last_error());
 		throw UnavailableDevice{};
 	}
 
@@ -94,7 +98,7 @@ void WindowsHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 	attrs.Size = sizeof(HIDD_ATTRIBUTES);
 
 	if (!::HidD_GetAttributes(handle_.get(), &attrs)) {
-		log(LogLevel::Error, "Unable to get HID attributes");
+		log(LogLevel::ERROR, "Unable to get HID attributes");
 		throw OSError{};
 	}
 
@@ -116,7 +120,7 @@ std::vector<HIDCollection> WindowsHIDDevice::caps_to_collections(
 	if (ret == HIDP_STATUS_USAGE_NOT_FOUND) {
 		return {};
 	} else if (ret != HIDP_STATUS_SUCCESS) {
-		log(LogLevel::Error, "HidP_GetSpecificValueCaps failed for report type "
+		log(LogLevel::ERROR, "HidP_GetSpecificValueCaps failed for report type "
 			+ std::to_string(report_type) + ": " + win32::hex_error(ret));
 		throw OSError{};
 	}
@@ -158,14 +162,14 @@ void WindowsHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 			return ::HidD_GetPreparsedData(handle_.get(), &data);
 		});
 	if (!preparsed_data) {
-		log(LogLevel::Error, "HidD_GetPreparsedData returned " + win32::last_error());
+		log(LogLevel::ERROR, "HidD_GetPreparsedData returned " + win32::last_error());
 		throw OSError{};
 	}
 
 	HIDP_CAPS caps{};
 	NTSTATUS ret = ::HidP_GetCaps(preparsed_data.get(), &caps);
 	if (ret != HIDP_STATUS_SUCCESS) {
-		log(LogLevel::Error, "HidP_GetCaps failed: " + win32::hex_error(ret));
+		log(LogLevel::ERROR, "HidP_GetCaps failed: " + win32::hex_error(ret));
 		throw OSError{};
 	}
 
@@ -191,7 +195,7 @@ void WindowsHIDDevice::reset() noexcept {
 }
 
 void WindowsHIDDevice::log(LogLevel level, const std::string &message) {
-	if (level >= LogLevel::Info) {
+	if (level >= LogLevel::INFO) {
 		win32::cout << filename_ << ": " << win32::ascii_to_native_string(message) << std::endl;
 	} else {
 		win32::cerr << filename_ << ": " << win32::ascii_to_native_string(message) << std::endl;
@@ -201,7 +205,7 @@ void WindowsHIDDevice::log(LogLevel level, const std::string &message) {
 void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	// Minimum length is OutputReportByteLength (which includes the Report ID)
 	if (report_length_ < data.size()) {
-		log(LogLevel::Error, "Report length too small for message (" + std::to_string(report_length_)
+		log(LogLevel::ERROR, "Report length too small for message (" + std::to_string(report_length_)
 			+ " < " + std::to_string(data.size()) + ")");
 		throw IOLengthError{};
 	}
@@ -211,7 +215,7 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	auto event = win32::wrap_handle(::CreateEvent(nullptr, true, false, nullptr));
 	if (!event) {
-		log(LogLevel::Error, "CreateEvent returned " + win32::last_error());
+		log(LogLevel::ERROR, "CreateEvent returned " + win32::last_error());
 		throw OSError{};
 	}
 
@@ -222,7 +226,7 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	if (!::WriteFile(handle_.get(), data.data(), data.size(), nullptr, &overlapped)) {
 		if (::GetLastError() != ERROR_IO_PENDING) {
-			log(LogLevel::Error, "WriteFile returned " + win32::last_error());
+			log(LogLevel::ERROR, "WriteFile returned " + win32::last_error());
 			throw OSError{};
 		}
 	}
@@ -230,7 +234,7 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	DWORD res = ::WaitForSingleObject(event.get(), 1000);
 	if (res != WAIT_OBJECT_0) {
-		log(LogLevel::Warning, "WaitForSingleObject returned "
+		log(LogLevel::WARNING, "WaitForSingleObject returned "
 			+ std::to_string(res) + ", " + win32::last_error());
 
 		::CancelIo(handle_.get());
@@ -240,12 +244,12 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	if (::GetOverlappedResult(handle_.get(), &overlapped, &written, true)) {
 		if (written != data.size()) {
-			log(LogLevel::Error, "Write completed with only " + std::to_string(written)
+			log(LogLevel::ERROR, "Write completed with only " + std::to_string(written)
 				+ " of " + std::to_string(data.size()) + " bytes");
 			throw IOError{};
 		}
 	} else {
-		log(LogLevel::Error, "GetOverlappedResult returned " + win32::last_error());
+		log(LogLevel::ERROR, "GetOverlappedResult returned " + win32::last_error());
 		throw IOError{};
 	}
 }

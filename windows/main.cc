@@ -24,6 +24,10 @@ extern "C" {
 #include <hidpi.h>
 }
 
+#ifndef NOGDI
+#	undef ERROR
+#endif
+
 #include "qmk-hid-identify.h"
 #include "../common/types.h"
 #include "windows++.h"
@@ -35,7 +39,7 @@ static std::vector<win32::native_string> enumerate_devices() {
 	GUID guid{};
 	::HidD_GetHidGuid(&guid);
 
-	win32::hdevinfo_t devinfo = win32::wrap_generic<HDEVINFO, ::SetupDiDestroyDeviceInfoList>(
+	auto devinfo = win32::wrap_generic<HDEVINFO, ::SetupDiDestroyDeviceInfoList>(
 		::SetupDiGetClassDevs(&guid, nullptr, nullptr, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT));
 
 	SP_DEVICE_INTERFACE_DATA di_data;

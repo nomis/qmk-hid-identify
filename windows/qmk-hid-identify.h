@@ -24,6 +24,10 @@ extern "C" {
 #include <hidpi.h>
 }
 
+#ifndef NOGDI
+#	undef ERROR
+#endif
+
 #include <cstdint>
 #include <string>
 #include <vector>

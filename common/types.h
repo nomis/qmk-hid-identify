@@ -24,9 +24,9 @@
 namespace hid_identify {
 
 enum class LogLevel {
-	Error,
-	Warning,
-	Info,
+	ERROR,
+	WARNING,
+	INFO,
 };
 
 struct USBDeviceInfo {

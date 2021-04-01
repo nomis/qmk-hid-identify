@@ -18,7 +18,10 @@
 #pragma once
 
 #include <windows.h>
-#include <setupapi.h>
+
+#ifndef NOGDI
+#	undef ERROR
+#endif
 
 #include <functional>
 #include <iostream>
@@ -63,7 +66,6 @@ wrapped_ptr<remove_pointer_t<T>, Deleter> wrap_generic(T data) {
 	}
 }
 
-using hdevinfo_t = wrapped_ptr<remove_pointer_t<HDEVINFO>, ::SetupDiDestroyDeviceInfoList>;
 using handle_t = wrapped_ptr<remove_pointer_t<HANDLE>, ::CloseHandle>;
 
 handle_t wrap_handle(HANDLE handle);
