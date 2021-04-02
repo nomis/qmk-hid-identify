@@ -28,7 +28,7 @@ extern "C" {
 #	undef ERROR
 #endif
 
-#include "qmk-hid-identify.h"
+#include "hid-identify.h"
 #include "../common/types.h"
 #include "windows++.h"
 

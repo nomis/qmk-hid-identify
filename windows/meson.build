@@ -11,7 +11,7 @@ project('qmk-hid-identify',
 
 source_files = [
 	'main.cc',
-	'qmk-hid-identify.cc',
+	'hid-identify.cc',
 	'windows++.cc',
 	'../common/hid-device.cc',
 	'../common/usb-vid-pid.cc',
