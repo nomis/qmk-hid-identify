@@ -50,7 +50,8 @@ std::vector<uint8_t> os_identity() {
 WindowsHIDDevice::WindowsHIDDevice(const win32::native_string &filename)
 		: filename_(filename) {
 	::SetLastError(0);
-	event_log_ = win32::wrap_generic<HANDLE, ::DeregisterEventSource>(RegisterEventSource(nullptr, LOG_PROVIDER));
+	event_log_ = win32::wrap_generic<HANDLE, ::DeregisterEventSource>(
+		RegisterEventSource(nullptr, LOG_PROVIDER.c_str()));
 	if (!event_log_) {
 		log(LogLevel::ERROR, "RegisterEventSource returned " + win32::last_error());
 		throw OSError{};
@@ -206,7 +207,7 @@ void WindowsHIDDevice::log(LogLevel level, const std::string &message) {
 	auto text = win32::ascii_to_native_string(message);
 
 	if (event_log_) {
-		std::vector<const win32::native_char*> ev_strings{ filename_.c_str(), text.c_str() };
+		std::vector<const win32::native_char*> ev_strings{filename_.c_str(), text.c_str()};
 		WORD ev_type = EVENTLOG_ERROR_TYPE;
 		DWORD ev_id = MSG_EVENT_F_ERROR;
 
