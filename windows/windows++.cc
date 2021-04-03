@@ -20,6 +20,7 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <stdexcept>
 #include <vector>
 
 namespace win32 {
@@ -34,6 +35,10 @@ wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle) {
 	}
 
 	return wrap_generic_handle(handle);
+}
+
+wrapped_ptr<HKEY, ::RegCloseKey> wrap_reg_key(HKEY key) {
+	return wrap_generic<HKEY, ::RegCloseKey>(key);
 }
 
 #ifdef UNICODE
@@ -105,5 +110,103 @@ std::string hex_error(DWORD error) {
 std::string last_error() {
 	return hex_error(GetLastError());
 }
+
+native_string current_process_filename() {
+	std::vector<native_char> filename(max_path + 1);
+
+	::SetLastError(0);
+	DWORD ret = ::GetModuleFileName(nullptr, filename.data(), filename.size());
+	if (ret == 0 || ret == ERROR_INSUFFICIENT_BUFFER) {
+		throw std::runtime_error{"GetModuleFileName returned " + win32::last_error()};
+	}
+
+	return {filename.data()};
+}
+
+bool is_elevated() {
+	::SetLastError(0);
+	auto admins = wrap_output<PSID, ::FreeSid>(
+		[&] (PSID &data) {
+			SID_IDENTIFIER_AUTHORITY authority = SECURITY_NT_AUTHORITY;
+			return ::AllocateAndInitializeSid(&authority, 2,
+				SECURITY_BUILTIN_DOMAIN_RID,
+				DOMAIN_ALIAS_RID_ADMINS,
+				0, 0, 0, 0, 0, 0, &data);
+		});
+	if (!admins) {
+		throw std::runtime_error{"AllocateAndInitializeSid returned " + win32::last_error()};
+	}
+
+	// Determine whether the SID of administrators group is enabled in
+	// the primary access token of the process.
+	BOOL admin = false;
+	::SetLastError(0);
+	if (!::CheckTokenMembership(nullptr, admins.get(), &admin)) {
+		throw std::runtime_error{"CheckTokenMembership returned " + win32::last_error()};
+	}
+
+	return admin;
+}
+
+int run_elevated(const std::vector<native_string> &parameters) {
+	auto filename = current_process_filename();
+	native_string cmdline;
+	bool first = true;
+
+	cmdline.reserve(max_path);
+	for (auto& parameter : parameters) {
+		if (!first) {
+			cmdline += ' ';
+		}
+		first = false;
+
+		cmdline += '\"';
+		for (auto& c : parameter) {
+			if (c == '\"') {
+				cmdline += '\"';
+			}
+			cmdline += c;
+		}
+		cmdline += '\"';
+	}
+
+	SHELLEXECUTEINFO exec_info{};
+	exec_info.cbSize = sizeof(exec_info);
+	exec_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+	exec_info.hwnd = nullptr;
+	exec_info.lpVerb = TEXT("runas");
+	exec_info.lpFile = filename.c_str();
+	exec_info.lpParameters = cmdline.c_str();
+	exec_info.lpDirectory = nullptr;
+	exec_info.nShow = SW_SHOWDEFAULT;
+	exec_info.hInstApp = 0;
+	exec_info.hProcess = nullptr;
+
+	::SetLastError(0);
+	if (!::ShellExecuteEx(&exec_info)) {
+		throw std::runtime_error{"ShellExecuteEx returned " + win32::last_error()};
+	}
+
+	auto process = wrap_generic_handle(exec_info.hProcess);
+	if (process) {
+		::SetLastError(0);
+		DWORD ret = ::WaitForSingleObject(process.get(), INFINITE);
+		if (ret != WAIT_OBJECT_0) {
+			throw std::runtime_error{"WaitForSingleObject returned "
+				+ std::to_string(ret) + ", " + win32::last_error()};
+		}
+
+		DWORD exit_code = 0;
+		::SetLastError(0);
+		if (!::GetExitCodeProcess(process.get(), &exit_code)) {
+			throw std::runtime_error{"GetExitCodeProcess returned " + win32::last_error()};
+		}
+
+		return exit_code;
+	}
+
+	return 0;
+}
+
 
 } /* namespace win32 */

@@ -16,95 +16,101 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <windows.h>
-#include <setupapi.h>
-#include <cfgmgr32.h>
-
-extern "C" {
-#include <hidsdi.h>
-#include <hidpi.h>
-}
 
 #ifndef NOGDI
 #	undef ERROR
 #endif
 
+#include <functional>
+#include <iomanip>
+#include <map>
+#include <vector>
+
+#include "hid-enumerate.h"
 #include "hid-identify.h"
+#include "registry.h"
 #include "../common/types.h"
 #include "windows++.h"
 
 using namespace hid_identify;
 
-static std::vector<win32::native_string> enumerate_devices() {
-	std::vector<win32::native_string> devices;
-	GUID guid{};
-	::HidD_GetHidGuid(&guid);
+struct Command {
+public:
+	std::function<int()> function;
+	bool elevate;
+	win32::native_string description;
+};
 
-	auto devinfo = win32::wrap_generic<HDEVINFO, ::SetupDiDestroyDeviceInfoList>(
-		::SetupDiGetClassDevs(&guid, nullptr, nullptr, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT));
+static std::map<win32::native_string, Command> commands;
 
-	SP_DEVICE_INTERFACE_DATA di_data;
+static void usage(const win32::native_string &name) {
+	bool first = true;
+	size_t max_length = 0;
 
-	for (DWORD di_idx = 0;
-			di_data = {}, di_data.cbSize = sizeof(di_data),
-			::SetupDiEnumDeviceInterfaces(devinfo.get(), nullptr, &guid, di_idx, &di_data);
-			di_idx++) {
-		SP_DEVINFO_DATA do_data{};
-		do_data.cbSize = sizeof(do_data);
-
-		/* Get device filename */
-		auto di_detail_data = win32::make_sized<SP_DEVICE_INTERFACE_DETAIL_DATA, DWORD>(
-			[&] (SP_DEVICE_INTERFACE_DETAIL_DATA *data, DWORD size, DWORD *required_size) {
-				if (data != nullptr) {
-					data->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
-				}
-
-				return ::SetupDiGetDeviceInterfaceDetail(devinfo.get(), &di_data,
-					data, size, required_size, &do_data);
-			}
-		);
-		if (!di_detail_data) {
+	win32::cout << "Usage: " << name << " <";
+	for (const auto& command : commands) {
+		if (command.second.description.empty()) {
 			continue;
 		}
 
-		/* Check device is installed */
-		auto install_state = win32::make_sized<BYTE, DWORD>(
-			[&] (BYTE *data, DWORD size, DWORD *required_size) {
-				return ::SetupDiGetDeviceRegistryProperty(devinfo.get(), &do_data,
-					SPDRP_INSTALL_STATE, nullptr, data, size, required_size);
-			}
-		);
-		if (!install_state) {
-			continue;
+		if (!first) {
+			win32::cout << "|";
 		}
+		first = false;
+		win32::cout << command.first;
 
-		if (install_state.size() != sizeof(DWORD)
-				|| *(reinterpret_cast<DWORD*>(install_state.get())) != CM_INSTALL_STATE_INSTALLED) {
-			continue;
+		if (max_length < command.first.length()) {
+			max_length = command.first.length();
 		}
-
-		devices.emplace_back(di_detail_data->DevicePath);
 	}
+	win32::cout << ">" << std::endl << std::endl;
 
-	return devices;
+	win32::cout << "Commands:" << std::endl;
+	for (const auto& command : commands) {
+		if (command.second.description.empty()) {
+			continue;
+		}
+
+		win32::cout << "  " << std::left << std::setw(max_length + 2)
+			<< command.first << std::setw(0)
+			<< command.second.description << std::endl;
+	}
 }
 
+static int command_install() {
+	return 1;
+}
+
+static int command_uninstall() {
+	return 1;
+}
+
+static int command_register() {
+	registry_add_event_log();
+	return 0;
+}
+
+static int command_unregister() {
+	registry_remove_event_log();
+	return 0;
+}
+
+static int command_report() {
 	int exit_ret = 0;
 
-	CM_WaitNoPendingInstallEvents(1000);
-
-	try {
-		for (auto& device : enumerate_devices()) {
-			try {
-				WindowsHIDDevice(device).identify();
-			} catch (const Exception&) {
-				exit_ret = exit_ret ? exit_ret : 1;
-			}
+	for (auto& device : enumerate_devices()) {
+		try {
+			WindowsHIDDevice(device).identify();
+		} catch (const Exception&) {
+			exit_ret = exit_ret ? exit_ret : 1;
 		}
-	} catch (...) {
-		throw;
 	}
 
 	return exit_ret;
+}
+
+static int command_service() {
+	return 1;
 }
 
 int
@@ -113,4 +119,41 @@ wmain
 #else
 main
 #endif
-(int argc __attribute__((unused)), win32::native_char *argv[] __attribute__((unused)), win32::native_char *envp[] __attribute__((unused))) {
+(int argc, win32::native_char *argv[], win32::native_char *envp[] __attribute__((unused))) {
+	commands = {
+		{TEXT("install"), {command_install, true, TEXT("Install and start service")}},
+		{TEXT("uninstall"), {command_uninstall, true, TEXT("Stop and uninstall service")}},
+
+		{TEXT("register"), {command_register, true, TEXT("Add event source to registry")}},
+		{TEXT("unregister"), {command_unregister, true, TEXT("Remove event source from registry")}},
+
+		{TEXT("report"), {command_report, false, TEXT("Send HID report to all devices")}},
+		{TEXT("service"), {command_service, false, TEXT("")}},
+	};
+
+	if (argc != 2) {
+		usage(argv[0]);
+		return 1;
+	}
+
+	auto command = commands.find(argv[1]);
+
+	if (command == commands.end()) {
+		usage(argv[0]);
+		return 1;
+	}
+
+	try {
+		if (command->second.elevate) {
+			if (!win32::is_elevated()) {
+				return win32::run_elevated({command->first});
+			}
+		}
+
+		return command->second.function();
+	} catch (const Exception&) {
+		return 1;
+	} catch (...) {
+		throw;
+	}
+}

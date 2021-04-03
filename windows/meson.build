@@ -25,7 +25,9 @@ resource_file = windows.compile_resources('app.rc',
 
 source_files = [
 	'main.cc',
+	'hid-enumerate.cc',
 	'hid-identify.cc',
+	'registry.cc',
 	'windows++.cc',
 	'../common/hid-device.cc',
 	'../common/usb-vid-pid.cc',
@@ -52,6 +54,7 @@ add_project_arguments('-DLPDEVMODE=LPVOID', language: 'cpp')
 cpp_libs = [
 	cpp.find_library('setupapi'),
 	cpp.find_library('hid'),
+	cpp.find_library('ktmw32'),
 ]
 
 executable('qmk-hid-identifyA',

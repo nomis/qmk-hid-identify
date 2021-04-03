@@ -32,6 +32,8 @@
 
 namespace win32 {
 
+constexpr DWORD max_path = 32767;
+
 template <class T>
 using remove_pointer_t = typename std::remove_pointer<T>::type;
 
@@ -71,6 +73,7 @@ wrapped_ptr<T, Deleter> wrap_generic(T data) {
 
 wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle);
 wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle);
+wrapped_ptr<HKEY, ::RegCloseKey> wrap_reg_key(HKEY key);
 
 template <typename T>
 using output_func_t = std::function<BOOLEAN(T &data)>;
@@ -80,8 +83,15 @@ wrapped_ptr<T, Deleter> wrap_output(
 		output_func_t<T> output_func) {
 	T data = nullptr;
 
-	if (!output_func(data)) {
-		data = nullptr;
+	try {
+		if (!output_func(data)) {
+			data = nullptr;
+		}
+	} catch (...) {
+		if (data != nullptr) {
+			Deleter(data);
+		}
+		throw;
 	}
 
 	return wrap_generic<T, Deleter>(data);
@@ -165,5 +175,9 @@ std::vector<native_string> reg_multi_sz(const native_string &text);
 
 std::string hex_error(DWORD error);
 std::string last_error();
+
+native_string current_process_filename();
+bool is_elevated();
+int run_elevated(const std::vector<native_string> &parameters);
 
 } /* namespace win32 */
