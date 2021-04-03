@@ -46,6 +46,7 @@ executable('qmk-hid-identifyA',
 executable('qmk-hid-identifyW',
 	source_files,
 	cpp_args: ['-DUNICODE'],
+	link_args: ['-municode'],
 	dependencies: cpp_libs,
 	install: true)
 

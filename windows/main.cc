@@ -88,7 +88,6 @@ static std::vector<win32::native_string> enumerate_devices() {
 	return devices;
 }
 
-int main(int, char *[]) {
 	int exit_ret = 0;
 
 	CM_WaitNoPendingInstallEvents(1000);
@@ -107,3 +106,11 @@ int main(int, char *[]) {
 
 	return exit_ret;
 }
+
+int
+#ifdef UNICODE
+wmain
+#else
+main
+#endif
+(int argc __attribute__((unused)), win32::native_char *argv[] __attribute__((unused)), win32::native_char *envp[] __attribute__((unused))) {
