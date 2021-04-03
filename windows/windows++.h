@@ -40,10 +40,13 @@ template <auto fn>
 using deleter_from_fn = std::integral_constant<decltype(fn), fn>;
 
 template <typename T, auto fn>
-using wrapped_ptr = std::unique_ptr<T, deleter_from_fn<fn>>;
+using wrapped_data = std::unique_ptr<T, deleter_from_fn<fn>>;
+
+template <typename T, auto fn>
+using wrapped_ptr = std::unique_ptr<remove_pointer_t<T>, deleter_from_fn<fn>>;
 
 template <typename T>
-wrapped_ptr<T, std::free> make_generic(size_t size) {
+wrapped_data<T, std::free> make_generic(size_t size) {
 	/* Can't be converted to use array allocation because at least one
 	 * usage allocates a single struct with a size specified in bytes.
 	 */
@@ -54,27 +57,26 @@ wrapped_ptr<T, std::free> make_generic(size_t size) {
 	}
 
 	/* Not using wrap_generic() because size may be 0 causing data to be nullptr */
-	return wrapped_ptr<T, std::free>{data};
+	return wrapped_data<T, std::free>{data};
 }
 
 template <typename T, auto Deleter>
-wrapped_ptr<remove_pointer_t<T>, Deleter> wrap_generic(T data) {
+wrapped_ptr<T, Deleter> wrap_generic(T data) {
 	if (data != nullptr) {
-		return wrapped_ptr<remove_pointer_t<T>, Deleter>{data};
+		return wrapped_ptr<T, Deleter>{data};
 	} else {
 		return {};
 	}
 }
 
-using handle_t = wrapped_ptr<remove_pointer_t<HANDLE>, ::CloseHandle>;
-
-handle_t wrap_handle(HANDLE handle);
+wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle);
+wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle);
 
 template <typename T>
 using output_func_t = std::function<BOOLEAN(T &data)>;
 
 template <typename T, auto Deleter>
-wrapped_ptr<remove_pointer_t<T>, Deleter> wrap_output(
+wrapped_ptr<T, Deleter> wrap_output(
 		output_func_t<T> output_func) {
 	T data = nullptr;
 
@@ -86,12 +88,12 @@ wrapped_ptr<remove_pointer_t<T>, Deleter> wrap_output(
 }
 
 template <class T, class Size>
-class sized_ptr: public wrapped_ptr<T, std::free> {
+class sized_data: public wrapped_data<T, std::free> {
 public:
-	sized_ptr() : wrapped_ptr<T, std::free>(), size_(0) {}
+	sized_data() : wrapped_data<T, std::free>(), size_(0) {}
 
-	explicit sized_ptr(wrapped_ptr<T, std::free> &ptr, Size size)
-			: wrapped_ptr<T, std::free>(std::move(ptr)), size_(size) {}
+	explicit sized_data(wrapped_data<T, std::free> &ptr, Size size)
+			: wrapped_data<T, std::free>(std::move(ptr)), size_(size) {}
 
 	Size size() const {
 		return size_;
@@ -105,7 +107,7 @@ template <class T, class Size>
 using sized_func_t = std::function<BOOLEAN(T *data, Size size, Size *required_size)>;
 
 template <class T, class Size>
-sized_ptr<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
+sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 	Size size = 0;
 
 	SetLastError(0);
@@ -115,9 +117,6 @@ sized_ptr<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 	}
 
 	auto data = make_generic<T>(size);
-	if (!data) {
-		return {};
-	}
 
 	SetLastError(0);
 	ret = sized_func(data.get(), size, nullptr);
@@ -125,7 +124,7 @@ sized_ptr<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 		return {};
 	}
 
-	return sized_ptr<T, Size>{data, size};
+	return sized_data<T, Size>{data, size};
 }
 
 #ifdef UNICODE
@@ -150,7 +149,7 @@ using native_char = typename native_string::value_type;
 
 native_string ascii_to_native_string(const std::string &text);
 
-native_string to_native_string(const sized_ptr<BYTE, DWORD> &data);
+native_string to_native_string(const sized_data<BYTE, DWORD> &data);
 
 /* https://stackoverflow.com/q/2898228/388191 */
 inline bool isdigit(native_char ch) {

@@ -56,7 +56,7 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 	}
 
 	::SetLastError(0);
-	handle_ = win32::wrap_handle(::CreateFile(filename_.c_str(), GENERIC_WRITE,
+	handle_ = win32::wrap_file_handle(::CreateFile(filename_.c_str(), GENERIC_WRITE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr));
 	if (!handle_) {
 		log(LogLevel::ERROR, "CreateFile returned " + win32::last_error());
@@ -213,7 +213,7 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	data.resize(report_length_);
 
 	::SetLastError(0);
-	auto event = win32::wrap_handle(::CreateEvent(nullptr, true, false, nullptr));
+	auto event = win32::wrap_generic_handle(::CreateEvent(nullptr, true, false, nullptr));
 	if (!event) {
 		log(LogLevel::ERROR, "CreateEvent returned " + win32::last_error());
 		throw OSError{};

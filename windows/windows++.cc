@@ -24,12 +24,16 @@
 
 namespace win32 {
 
-handle_t wrap_handle(HANDLE handle) {
+wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle) {
+	return wrap_generic<HANDLE, ::CloseHandle>(handle);
+}
+
+wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle) {
 	if (handle == INVALID_HANDLE_VALUE) {
 		handle = nullptr;
 	}
 
-	return wrap_generic<HANDLE, ::CloseHandle>(handle);
+	return wrap_generic_handle(handle);
 }
 
 #ifdef UNICODE
@@ -51,10 +55,10 @@ std::string to_string(const native_char *text, ssize_t wlen) {
 }
 
 native_string ascii_to_native_string(const std::string &text) {
-	return {text.begin(), text.end()};
+	return native_string{text.begin(), text.end()};
 }
 
-native_string to_native_string(const sized_ptr<BYTE, DWORD> &data) {
+native_string to_native_string(const sized_data<BYTE, DWORD> &data) {
 	return native_string{reinterpret_cast<native_char*>(data.get()), data.size()/2};
 }
 #else
@@ -70,7 +74,7 @@ native_string ascii_to_native_string(const std::string &text) {
 	return text;
 }
 
-native_string to_native_string(const sized_ptr<BYTE, DWORD> &data) {
+native_string to_native_string(const sized_data<BYTE, DWORD> &data) {
 	return native_string{reinterpret_cast<native_char*>(data.get()), data.size()};
 }
 #endif
