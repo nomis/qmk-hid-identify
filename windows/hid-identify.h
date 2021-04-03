@@ -38,7 +38,7 @@ extern "C" {
 
 namespace hid_identify {
 
-static const win32::native_string LOG_PROVIDER = TEXT("uk-uuid-QMK HID Identify");
+static const win32::native_string LOG_PROVIDER = TEXT("uk.uuid-QMK HID Identify");
 
 class WindowsHIDDevice: public HIDDevice {
 public:
