@@ -9,12 +9,25 @@ project('qmk-hid-identify',
 	meson_version: '>=0.53.0',
 )
 
+windows = import('windows')
+
+events_files = custom_target('events',
+	input: 'events.mc',
+	output: ['events.h', 'events.rc'],
+	command: [find_program('windmc'), '-C', '65001', '-U', '-b', '-h', '@OUTDIR@', '-r', '@OUTDIR@', '@INPUT@'])
+
+resource_file = windows.compile_resources('app.rc',
+	depends: events_files,
+	# Workaround Meson bug
+	include_directories: include_directories('.'))
+
 source_files = [
 	'main.cc',
 	'hid-identify.cc',
 	'windows++.cc',
 	'../common/hid-device.cc',
 	'../common/usb-vid-pid.cc',
+	resource_file,
 ]
 
 cpp = meson.get_compiler('cpp')

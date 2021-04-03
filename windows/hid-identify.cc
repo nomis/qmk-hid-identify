@@ -38,6 +38,7 @@ extern "C" {
 
 #include "../common/hid-device.h"
 #include "../common/types.h"
+#include "events.h"
 #include "windows++.h"
 
 namespace hid_identify {
@@ -48,6 +49,12 @@ std::vector<uint8_t> os_identity() {
 
 WindowsHIDDevice::WindowsHIDDevice(const win32::native_string &filename)
 		: filename_(filename) {
+	::SetLastError(0);
+	event_log_ = win32::wrap_generic<HANDLE, ::DeregisterEventSource>(RegisterEventSource(nullptr, LOG_PROVIDER));
+	if (!event_log_) {
+		log(LogLevel::ERROR, "RegisterEventSource returned " + win32::last_error());
+		throw OSError{};
+	}
 }
 
 void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) {
@@ -195,10 +202,38 @@ void WindowsHIDDevice::reset() noexcept {
 }
 
 void WindowsHIDDevice::log(LogLevel level, const std::string &message) {
+	auto text = win32::ascii_to_native_string(message);
+
+	if (event_log_) {
+		std::vector<const win32::native_char*> ev_strings{ filename_.c_str(), text.c_str() };
+		WORD ev_type = EVENTLOG_ERROR_TYPE;
+		DWORD ev_id = MSG_EVENT_F_ERROR;
+
+		switch (level) {
+		case LogLevel::ERROR:
+			ev_type = EVENTLOG_ERROR_TYPE;
+			ev_id = MSG_EVENT_F_ERROR;
+			break;
+
+		case LogLevel::WARNING:
+			ev_type = EVENTLOG_WARNING_TYPE;
+			ev_id = MSG_EVENT_F_WARNING;
+			break;
+
+		case LogLevel::INFO:
+			ev_type = EVENTLOG_INFORMATION_TYPE;
+			ev_id = MSG_EVENT_F_INFO;
+			break;
+		}
+
+		::ReportEvent(event_log_.get(), ev_type, 0, ev_id, nullptr,
+			ev_strings.size(), 0, ev_strings.data(), nullptr);
+	}
+
 	if (level >= LogLevel::INFO) {
-		win32::cout << filename_ << ": " << win32::ascii_to_native_string(message) << std::endl;
+		win32::cout << filename_ << ": " << text << std::endl;
 	} else {
-		win32::cerr << filename_ << ": " << win32::ascii_to_native_string(message) << std::endl;
+		win32::cerr << filename_ << ": " << text << std::endl;
 	}
 }
 
