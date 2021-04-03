@@ -63,7 +63,7 @@ void HIDDevice::check_device_allowed() {
 		}
 	}
 
-	log(LogLevel::ERROR, "Device not allowed");
+	log(LogLevel::INFO, "Device not allowed");
 	throw DisallowedUSBDevice{};
 }
 
@@ -93,7 +93,7 @@ void HIDDevice::check_device_reports() {
 		}
 	}
 
-	log(LogLevel::ERROR, "Not a QMK raw HID device interface");
+	log(LogLevel::INFO, "Not a QMK raw HID device interface");
 	throw UnsupportedHIDReportUsage{};
 }
 
