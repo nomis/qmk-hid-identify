@@ -26,7 +26,7 @@ if not (cpp.get_id() == 'gcc' and cpp.version().version_compare('<5'))
 endif
 
 executable('qmk-hid-identify',
-	source_files,
+	files(source_files),
 	install: true)
 
 run_target('cppcheck',

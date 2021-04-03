@@ -20,17 +20,19 @@ vcs_file = vcs_tag(input: 'version.h.in', output: 'version.h')
 
 resource_file = windows.compile_resources('app.rc',
 	depends: [events_files, vcs_file],
-	# Workaround Meson bug
+	# Workaround for https://github.com/mesonbuild/meson/issues/8612
 	include_directories: include_directories('.'))
 
 source_files = [
-	'main.cc',
-	'hid-enumerate.cc',
-	'hid-identify.cc',
-	'registry.cc',
-	'windows++.cc',
-	'../common/hid-device.cc',
-	'../common/usb-vid-pid.cc',
+	files(
+		'main.cc',
+		'hid-enumerate.cc',
+		'hid-identify.cc',
+		'registry.cc',
+		'windows++.cc',
+		'../common/hid-device.cc',
+		'../common/usb-vid-pid.cc',
+	),
 	resource_file,
 ]
 
