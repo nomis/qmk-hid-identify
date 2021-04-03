@@ -113,6 +113,7 @@ void WindowsHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 
 	// This should always be known
 	if (device_info.interface_number == -1) {
+		log(LogLevel::INFO, "Unknown USB interface number");
 		throw DisallowedUSBDevice{};
 	}
 }
