@@ -1,1 +1,28 @@
+#include <windows.h>
+#include "version.h"
+
+1 VERSIONINFO
+	FILEVERSION 0, 0, 0, 0
+	PRODUCTVERSION 0, 0, 0, 0
+	FILEOS VOS_NT_WINDOWS32
+	FILETYPE VFT_APP
+	FILESUBTYPE 0
+	FILEFLAGS 0
+	FILEFLAGSMASK 0
+{
+	BLOCK "StringFileInfo"
+	{
+		BLOCK "0809FDE9"
+		{
+			VALUE "LegalCopyright", "Copyright \xA92021  Simon Arlott\r\n\r\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\r\n\r\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.\r\n\r\nYou should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>."
+			VALUE "ProductName", "QMK HID Identify"
+			VALUE "ProductVersion", VCS_TAG
+		}
+	}
+	BLOCK "VarFileInfo"
+	{
+		VALUE "Translation", 0x0809, 0xFDE9
+	}
+}
+
 #include "events.rc"

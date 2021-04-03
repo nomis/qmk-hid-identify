@@ -16,8 +16,10 @@ events_files = custom_target('events',
 	output: ['events.h', 'events.rc'],
 	command: [find_program('windmc'), '-C', '65001', '-U', '-b', '-h', '@OUTDIR@', '-r', '@OUTDIR@', '@INPUT@'])
 
+vcs_file = vcs_tag(input: 'version.h.in', output: 'version.h')
+
 resource_file = windows.compile_resources('app.rc',
-	depends: events_files,
+	depends: [events_files, vcs_file],
 	# Workaround Meson bug
 	include_directories: include_directories('.'))
 
