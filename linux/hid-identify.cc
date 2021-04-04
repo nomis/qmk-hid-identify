@@ -30,8 +30,10 @@
 #include <linux/input.h>
 #include <linux/hidraw.h>
 
+#include <cstdarg>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../common/hid-device.h"
@@ -81,7 +83,8 @@ void LinuxHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &re
 
 	fd_ = unique_fd(::open(pathname_.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC));
 	if (!fd_) {
-		log(LogLevel::ERROR, get_strerror());
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "open", get_strerror().c_str());
 		throw UnavailableDevice{};
 	}
 
@@ -94,7 +97,8 @@ void LinuxHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 	struct hidraw_devinfo info{};
 
 	if (::ioctl(fd_.get(), HIDIOCGRAWINFO, &info) < 0) {
-		log(LogLevel::ERROR, "HIDIOCGRAWINFO: " + get_strerror());
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "ioctl(HIDIOCGRAWINFO)", get_strerror().c_str());
 		throw OSError{};
 	}
 
@@ -106,22 +110,27 @@ void LinuxHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 	int desc_size = 0;
 
 	if (::ioctl(fd_.get(), HIDIOCGRDESCSIZE, &desc_size) < 0) {
-		log(LogLevel::ERROR, "HIDIOCGRDESCSIZE: " + get_strerror());
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "ioctl(HIDIOCGRDESCSIZE)", get_strerror().c_str());
 		throw OSError{};
 	}
 
 	if (desc_size < 0) {
-		log(LogLevel::ERROR, "Report descriptor size is negative (" + std::to_string(desc_size) + ")");
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_REPORT_DESCRIPTOR_SIZE_NEGATIVE,
+			1, ::gettext("Report descriptor size is negative (%s)"),
+			std::to_string(desc_size).c_str());
 		throw OSLengthError{};
 	} else if ((unsigned int)desc_size > sizeof(rpt_desc.value)) {
-		log(LogLevel::ERROR, "Report descriptor size too large (" + std::to_string(desc_size)
-			+ " > " + std::to_string(sizeof(rpt_desc.value)) + ")");
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_REPORT_DESCRIPTOR_SIZE_TOO_LARGE,
+			2, ::gettext("Report descriptor size too large (%s > %s)"),
+			std::to_string(desc_size).c_str(), std::to_string(sizeof(rpt_desc.value)).c_str());
 		throw OSLengthError{};
 	}
 
 	rpt_desc.size = desc_size;
 	if (::ioctl(fd_.get(), HIDIOCGRDESC, &rpt_desc) < 0) {
-		log(LogLevel::ERROR, "HIDIOCGRDESC: " + get_strerror());
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "ioctl(HIDIOCGRDESC)", get_strerror().c_str());
 		throw OSError{};
 	}
 
@@ -134,7 +143,8 @@ void LinuxHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 		if (ret == 0) {
 			reports.emplace_back(std::move(hid_report));
 		} else if (ret == -1) {
-			log(LogLevel::ERROR, "Malformed report descriptor");
+			log(LogLevel::WARNING, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_MALFORMED_REPORT_DESCRIPTOR,
+				0, ::gettext("Malformed report descriptor"));
 			throw MalformedHIDReportDescriptor{};
 		}
 	} while (ret != 0);
@@ -144,7 +154,8 @@ void LinuxHIDDevice::init_name() {
 	std::vector<char> buf(256);
 
 	if (::ioctl(fd_.get(), HIDIOCGRAWPHYS(buf.size()), buf.data()) < 0) {
-		log(LogLevel::WARNING, "HIDIOCGRAWPHYS: " + get_strerror());
+		log(LogLevel::WARNING, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "ioctl(HIDIOCGRAWPHYS)", get_strerror().c_str());
 		name_.clear();
 	} else {
 		name_ = buf.data();
@@ -157,42 +168,46 @@ void LinuxHIDDevice::reset() noexcept {
 	report_count_ = 0;
 }
 
-void LinuxHIDDevice::log(LogLevel level, const std::string &message) {
+void LinuxHIDDevice::log(LogLevel level,
+		LogCategory category __attribute__((unused)),
+		LogMessage message __attribute__((unused)),
+		int argc __attribute__((unused)),
+		const char *format...) {
 	std::string prefix = pathname_;
 
 	if (!name_.empty()) {
 		prefix += " (" + name_ + ")";
 	}
 
-	int priority = LOG_USER;
+	std::vector<char> text(256);
+	std::va_list args;
 
-	switch (level) {
-	case LogLevel::ERROR:
-		priority |= LOG_ERR;
-		break;
-
-	case LogLevel::WARNING:
-		priority |= LOG_WARNING;
-		break;
-
-	case LogLevel::INFO:
-		priority |= LOG_INFO;
-		break;
+	va_start(args, format);
+	if (std::vsnprintf(text.data(), text.size(), format, args) < 0) {
+		text[0] = '?';
+		text[1] = '\0';
 	}
+	va_end(args);
 
-	::syslog(priority, "%s: %s", prefix.c_str(), message.c_str());
+	::syslog(LOG_USER | static_cast<int>(level), "%s: %s", prefix.c_str(), text.data());
 
 	if (level >= LogLevel::INFO) {
-		std::cout << prefix << ": " << message << std::endl;
+		std::cout << prefix << ": " << text.data() << std::endl;
 	} else {
-		std::cerr << prefix << ": " << message << std::endl;
+		std::cerr << prefix << ": " << text.data() << std::endl;
 	}
 }
 
 void LinuxHIDDevice::send_report(std::vector<uint8_t> &data) {
 	ssize_t ret = ::write(fd_.get(), data.data(), data.size());
-	if (ret < 0 || (size_t)ret != data.size()) {
-		log(LogLevel::ERROR, "write: " + get_strerror());
+	if (ret < 0) {
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_WRITE_FAILED,
+			1, ::gettext("write: %s"), get_strerror().c_str());
+		throw IOError{};
+	} else if ((size_t)ret != data.size()) {
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_SHORT_WRITE,
+			2, ::gettext("Write completed with only %s of %s bytes written"),
+			std::to_string(ret).c_str(), std::to_string(data.size()).c_str());
 		throw IOError{};
 	}
 }

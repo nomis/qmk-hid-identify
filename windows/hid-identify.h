@@ -44,9 +44,10 @@ class WindowsHIDDevice: public HIDDevice {
 public:
 	explicit WindowsHIDDevice(const win32::native_string &filename);
 
-	void log(LogLevel level, const std::string &message) override;
-
 protected:
+	void log(LogLevel level, LogCategory category, LogMessage message,
+		int argc, const char *format...) override;
+
 	void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
 	void send_report(std::vector<uint8_t> &data) override;
 	void reset() noexcept override;

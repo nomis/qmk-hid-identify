@@ -22,6 +22,7 @@
 #	undef ERROR
 #endif
 
+#include "events.h"
 #include "hid-identify.h"
 #include "../common/types.h"
 #include "windows++.h"
@@ -29,9 +30,27 @@
 namespace hid_identify {
 
 static const win32::native_string LOG_REG_HLKM_KEY = TEXT("SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\") + LOG_PROVIDER;
+static const win32::native_string LOG_REG_VALUE_CATFILE_NAME = TEXT("CategoryMessageFile");
+static const win32::native_string LOG_REG_VALUE_CATCOUNT_NAME = TEXT("CategoryCount");
+static const DWORD LOG_REG_VALUE_CATCOUNT_DATA = LOGGING_CATEGORY_MAX;
 static const win32::native_string LOG_REG_VALUE_MSGFILE_NAME = TEXT("EventMessageFile");
 static const win32::native_string LOG_REG_VALUE_TYPES_NAME = TEXT("TypesSupported");
 static const DWORD LOG_REG_VALUE_TYPES_DATA = EVENTLOG_INFORMATION_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_ERROR_TYPE;
+
+static void registry_set_value(HKEY key, const win32::native_string &name,
+		DWORD type, const BYTE *data, DWORD len, bool verbose) {
+	DWORD ret = ::RegSetValueEx(key, name.c_str(), 0, type, data, len);
+
+	if (ret != ERROR_SUCCESS) {
+		win32::cerr << "RegSetValueEx for " << name << " returned "
+			<< win32::ascii_to_native_string(win32::hex_error(ret)) << std::endl;
+		throw OSError{};
+	}
+
+	if (verbose) {
+		win32::cout << "Set value of " << LOG_REG_VALUE_MSGFILE_NAME << std::endl;
+	}
+}
 
 void registry_add_event_log(bool verbose) {
 	auto txn = win32::wrap_file_handle(::CreateTransaction(
@@ -68,27 +87,22 @@ void registry_add_event_log(bool verbose) {
 		});
 
 	auto filename = win32::current_process_filename();
-	DWORD ret = ::RegSetValueEx(log_key.get(), LOG_REG_VALUE_MSGFILE_NAME.c_str(), 0,
-		REG_SZ, reinterpret_cast<const BYTE*>(filename.c_str()),
-		(filename.length() + 1) * sizeof(win32::native_char));
-	if (ret != ERROR_SUCCESS) {
-		win32::cerr << "RegSetValueEx for " << LOG_REG_VALUE_MSGFILE_NAME <<" returned "
-			<< win32::ascii_to_native_string(win32::hex_error(ret)) << std::endl;
-		throw OSError{};
-	}
-	win32::cout << "Set value of " << LOG_REG_VALUE_MSGFILE_NAME << std::endl;
 
-	ret = ::RegSetValueEx(log_key.get(), LOG_REG_VALUE_TYPES_NAME.c_str(), 0,
+	registry_set_value(log_key.get(), LOG_REG_VALUE_CATFILE_NAME,
+		REG_SZ, reinterpret_cast<const BYTE*>(filename.c_str()),
+		(filename.length() + 1) * sizeof(win32::native_char), verbose);
+
+	registry_set_value(log_key.get(), LOG_REG_VALUE_CATCOUNT_NAME,
+		REG_DWORD, reinterpret_cast<const BYTE*>(&LOG_REG_VALUE_CATCOUNT_DATA),
+		sizeof(LOG_REG_VALUE_CATCOUNT_DATA), verbose);
+
+	registry_set_value(log_key.get(), LOG_REG_VALUE_MSGFILE_NAME,
+		REG_SZ, reinterpret_cast<const BYTE*>(filename.c_str()),
+		(filename.length() + 1) * sizeof(win32::native_char), verbose);
+
+	registry_set_value(log_key.get(), LOG_REG_VALUE_TYPES_NAME,
 		REG_DWORD, reinterpret_cast<const BYTE*>(&LOG_REG_VALUE_TYPES_DATA),
-		sizeof(LOG_REG_VALUE_TYPES_DATA));
-	if (ret != ERROR_SUCCESS) {
-		win32::cerr << "RegSetValueEx for " << LOG_REG_VALUE_TYPES_NAME << " returned "
-			<< win32::ascii_to_native_string(win32::hex_error(ret)) << std::endl;
-		throw OSError{};
-	}
-	if (verbose) {
-		win32::cout << "Set value of " << LOG_REG_VALUE_TYPES_NAME << std::endl;
-	}
+		sizeof(LOG_REG_VALUE_TYPES_DATA), verbose);
 
 	SetLastError(0);
 	if (!::CommitTransaction(txn.get())) {

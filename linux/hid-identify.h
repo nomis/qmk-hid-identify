@@ -31,9 +31,10 @@ class LinuxHIDDevice: public HIDDevice {
 public:
 	explicit LinuxHIDDevice(const std::string &pathname);
 
-	void log(LogLevel level, const std::string &message) override;
-
 protected:
+	void log(LogLevel level, LogCategory category, LogMessage message,
+		int argc, const char *format...) override;
+
 	void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
 	void send_report(std::vector<uint8_t> &data) override;
 	void reset() noexcept override;

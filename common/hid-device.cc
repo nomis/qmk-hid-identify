@@ -63,7 +63,8 @@ void HIDDevice::check_device_allowed() {
 		}
 	}
 
-	log(LogLevel::INFO, "Device not allowed");
+	log(LogLevel::INFO, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_NOT_ALLOWED,
+		0, ::gettext("Device not allowed"));
 	throw DisallowedUSBDevice{};
 }
 
@@ -93,7 +94,8 @@ void HIDDevice::check_device_reports() {
 		}
 	}
 
-	log(LogLevel::INFO, "Not a QMK raw HID device interface");
+	log(LogLevel::INFO, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_UNKNOWN_USAGE,
+		0, ::gettext("Not a QMK raw HID device interface"));
 	throw UnsupportedHIDReportUsage{};
 }
 
@@ -111,15 +113,17 @@ void HIDDevice::send_report() {
 	data.insert(data.end(), identity.begin(), identity.end());
 
 	if (report_count_ < data.size() - 1) {
-		log(LogLevel::ERROR, "Report count too small for message (" + std::to_string(report_count_)
-			+ " < " + std::to_string(data.size() - 1) + ")");
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_REPORT_COUNT_TOO_SMALL,
+			2, ::gettext("Report count too small for message (%s < %s)"),
+			std::to_string(report_count_).c_str(), std::to_string(data.size() - 1).c_str());
 		throw IOLengthError{};
 	}
 
 	data.resize(1 + report_count_);
 
 	send_report(data);
-	log(LogLevel::INFO, "Report sent");
+	log(LogLevel::INFO, LogCategory::REPORT_SENT, LogMessage::DEV_REPORT_SENT,
+		0, ::gettext("Report sent"));
 }
 
 } // namespace hid_identify

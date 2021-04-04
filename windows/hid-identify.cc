@@ -30,10 +30,12 @@ extern "C" {
 
 #include <algorithm>
 #include <cctype>
+#include <cstdarg>
 #include <cwctype>
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../common/hid-device.h"
@@ -53,7 +55,8 @@ WindowsHIDDevice::WindowsHIDDevice(const win32::native_string &filename)
 	event_log_ = win32::wrap_generic<HANDLE, ::DeregisterEventSource>(
 		RegisterEventSource(nullptr, LOG_PROVIDER.c_str()));
 	if (!event_log_) {
-		log(LogLevel::ERROR, "RegisterEventSource returned " + win32::last_error());
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "RegisterEventSource", win32::last_error().c_str());
 		throw OSError{};
 	}
 }
@@ -67,7 +70,13 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 	handle_ = win32::wrap_file_handle(::CreateFile(filename_.c_str(), GENERIC_WRITE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr));
 	if (!handle_) {
-		log(LogLevel::ERROR, "CreateFile returned " + win32::last_error());
+		if (::GetLastError() == ERROR_ACCESS_DENIED) {
+			log(LogLevel::INFO, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_ACCESS_DENIED,
+				0, ::gettext("Access denied"));
+		} else {
+			log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+				2, ::gettext("%s: %s"), "CreateFile", win32::last_error().c_str());
+		}
 		throw UnavailableDevice{};
 	}
 
@@ -106,7 +115,8 @@ void WindowsHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 	attrs.Size = sizeof(HIDD_ATTRIBUTES);
 
 	if (!::HidD_GetAttributes(handle_.get(), &attrs)) {
-		log(LogLevel::ERROR, "Unable to get HID attributes");
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_NO_HID_ATTRIBUTES,
+			0, ::gettext("Unable to get HID attributes"));
 		throw OSError{};
 	}
 
@@ -114,7 +124,8 @@ void WindowsHIDDevice::init_device_info(USBDeviceInfo &device_info) {
 
 	// This should always be known
 	if (device_info.interface_number == -1) {
-		log(LogLevel::INFO, "Unknown USB interface number");
+		log(LogLevel::INFO, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_UNKNOWN_USB_INTERFACE_NUMBER,
+			0, ::gettext("Unknown USB interface number"));
 		throw DisallowedUSBDevice{};
 	}
 }
@@ -129,8 +140,10 @@ std::vector<HIDCollection> WindowsHIDDevice::caps_to_collections(
 	if (ret == HIDP_STATUS_USAGE_NOT_FOUND) {
 		return {};
 	} else if (ret != HIDP_STATUS_SUCCESS) {
-		log(LogLevel::ERROR, "HidP_GetSpecificValueCaps failed for report type "
-			+ std::to_string(report_type) + ": " + win32::hex_error(ret));
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_PARAM_1_CODE_1,
+			3, ::gettext("%s(%s): %s"), "HidP_GetSpecificValueCaps",
+			std::to_string(report_type).c_str(),
+			win32::hex_error(ret).c_str());
 		throw OSError{};
 	}
 
@@ -171,14 +184,16 @@ void WindowsHIDDevice::init_reports(std::vector<HIDReport> &reports) {
 			return ::HidD_GetPreparsedData(handle_.get(), &data);
 		});
 	if (!preparsed_data) {
-		log(LogLevel::ERROR, "HidD_GetPreparsedData returned " + win32::last_error());
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "HidD_GetPreparsedData", win32::last_error().c_str());
 		throw OSError{};
 	}
 
 	HIDP_CAPS caps{};
 	NTSTATUS ret = ::HidP_GetCaps(preparsed_data.get(), &caps);
 	if (ret != HIDP_STATUS_SUCCESS) {
-		log(LogLevel::ERROR, "HidP_GetCaps failed: " + win32::hex_error(ret));
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "HidP_GetCaps", win32::hex_error(ret).c_str());
 		throw OSError{};
 	}
 
@@ -203,47 +218,74 @@ void WindowsHIDDevice::reset() noexcept {
 	handle_.reset();
 }
 
-void WindowsHIDDevice::log(LogLevel level, const std::string &message) {
-	auto text = win32::ascii_to_native_string(message);
+void WindowsHIDDevice::log(LogLevel level, LogCategory category,
+		LogMessage message, int argc, const char *format...) {
+	std::va_list args;
+	va_start(args, format);
+	std::va_list args_fallback;
+	va_copy(args_fallback, args);
+
+	std::vector<std::vector<win32::native_char>> ev_strings;
+	std::vector<const win32::native_char*> ev_string_ptrs(1 + argc);
+
+	ev_strings.reserve(1 + argc);
+	ev_strings.emplace_back(filename_.c_str(), filename_.c_str() + filename_.length() + 1);
+	ev_string_ptrs[0] = ev_strings.back().data();
+
+	for (int i = 0; i < argc; i++) {
+		auto value = win32::ascii_to_native_string(va_arg(args, char*));
+
+		ev_strings.emplace_back(value.c_str(), value.c_str() + value.length() + 1);
+		ev_string_ptrs[i + 1] = ev_strings.back().data();
+	}
+	va_end(args);
 
 	if (event_log_) {
-		std::vector<const win32::native_char*> ev_strings{filename_.c_str(), text.c_str()};
-		WORD ev_type = EVENTLOG_ERROR_TYPE;
-		DWORD ev_id = MSG_EVENT_F_ERROR;
+		::ReportEvent(event_log_.get(), static_cast<WORD>(level),
+			static_cast<WORD>(category), static_cast<DWORD>(message),
+			nullptr, ev_string_ptrs.size(), 0, ev_string_ptrs.data(),
+			nullptr);
+	}
 
-		switch (level) {
-		case LogLevel::ERROR:
-			ev_type = EVENTLOG_ERROR_TYPE;
-			ev_id = MSG_EVENT_F_ERROR;
-			break;
+	::SetLastError(0);
+	auto formatted_text = win32::wrap_output<LPTSTR, ::LocalFree>(
+		[&] (LPTSTR &data) {
+			return FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
+					| FORMAT_MESSAGE_FROM_HMODULE
+					| FORMAT_MESSAGE_ARGUMENT_ARRAY,
+				nullptr, static_cast<DWORD>(message), 0,
+				reinterpret_cast<LPTSTR>(&data), 0,
+				reinterpret_cast<va_list*>(const_cast<DWORD_PTR*>(reinterpret_cast<const DWORD_PTR*>(ev_string_ptrs.data()))));
+		});
+	if (formatted_text) {
+		if (level >= LogLevel::INFO) {
+			win32::cout << formatted_text.get() << std::flush;
+		} else {
+			win32::cerr << formatted_text.get() << std::flush;
+		}
+	} else {
+		std::vector<char> text(win32::max_path + 1024);
 
-		case LogLevel::WARNING:
-			ev_type = EVENTLOG_WARNING_TYPE;
-			ev_id = MSG_EVENT_F_WARNING;
-			break;
-
-		case LogLevel::INFO:
-			ev_type = EVENTLOG_INFORMATION_TYPE;
-			ev_id = MSG_EVENT_F_INFO;
-			break;
+		if (std::vsnprintf(text.data(), text.size(), format, args_fallback) < 0) {
+			text[0] = '?';
+			text[1] = '\0';
 		}
 
-		::ReportEvent(event_log_.get(), ev_type, 0, ev_id, nullptr,
-			ev_strings.size(), 0, ev_strings.data(), nullptr);
+		if (level >= LogLevel::INFO) {
+			win32::cout << filename_ << ": " << text.data() << std::endl;
+		} else {
+			win32::cerr << filename_ << ": " << text.data() << std::endl;
+		}
 	}
-
-	if (level >= LogLevel::INFO) {
-		win32::cout << filename_ << ": " << text << std::endl;
-	} else {
-		win32::cerr << filename_ << ": " << text << std::endl;
-	}
+	::va_end(args_fallback);
 }
 
 void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	// Minimum length is OutputReportByteLength (which includes the Report ID)
 	if (report_length_ < data.size()) {
-		log(LogLevel::ERROR, "Report length too small for message (" + std::to_string(report_length_)
-			+ " < " + std::to_string(data.size()) + ")");
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_REPORT_LENGTH_TOO_SMALL,
+			2, ::gettext("Report length too small for message (%s < %s)"),
+			std::to_string(report_length_).c_str(), std::to_string(data.size()).c_str());
 		throw IOLengthError{};
 	}
 
@@ -252,7 +294,8 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	auto event = win32::wrap_generic_handle(::CreateEvent(nullptr, true, false, nullptr));
 	if (!event) {
-		log(LogLevel::ERROR, "CreateEvent returned " + win32::last_error());
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "CreateEvent", win32::last_error().c_str());
 		throw OSError{};
 	}
 
@@ -263,17 +306,23 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	if (!::WriteFile(handle_.get(), data.data(), data.size(), nullptr, &overlapped)) {
 		if (::GetLastError() != ERROR_IO_PENDING) {
-			log(LogLevel::ERROR, "WriteFile returned " + win32::last_error());
+			log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_WRITE_FAILED,
+				1, ::gettext("WriteFile: %s"), win32::last_error().c_str());
 			throw OSError{};
 		}
 	}
 
 	::SetLastError(0);
 	DWORD res = ::WaitForSingleObject(event.get(), 1000);
-	if (res != WAIT_OBJECT_0) {
-		log(LogLevel::WARNING, "WaitForSingleObject returned "
-			+ std::to_string(res) + ", " + win32::last_error());
+	if (res == WAIT_TIMEOUT) {
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_WRITE_TIMEOUT,
+			0, ::gettext("Report send timed out"));
+	} else if (res != WAIT_OBJECT_0) {
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_2,
+			3, ::gettext("%s: %s, %s"), "WaitForSingleObject", std::to_string(res).c_str(), win32::last_error().c_str());
+	}
 
+	if (res != WAIT_OBJECT_0) {
 		::CancelIo(handle_.get());
 	}
 
@@ -281,12 +330,14 @@ void WindowsHIDDevice::send_report(std::vector<uint8_t> &data) {
 	::SetLastError(0);
 	if (::GetOverlappedResult(handle_.get(), &overlapped, &written, true)) {
 		if (written != data.size()) {
-			log(LogLevel::ERROR, "Write completed with only " + std::to_string(written)
-				+ " of " + std::to_string(data.size()) + " bytes");
+			log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_SHORT_WRITE,
+				2, ::gettext("Write completed with only %s of %s bytes written"),
+				std::to_string(written).c_str(), std::to_string(data.size()).c_str());
 			throw IOError{};
 		}
 	} else {
-		log(LogLevel::ERROR, "GetOverlappedResult returned " + win32::last_error());
+		log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "GetOverlappedResult", win32::last_error().c_str());
 		throw IOError{};
 	}
 }

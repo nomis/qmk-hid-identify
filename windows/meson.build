@@ -13,7 +13,7 @@ windows = import('windows')
 
 events_files = custom_target('events',
 	input: 'events.mc',
-	output: ['events.h', 'events.rc'],
+	output: ['events.h', 'events.rc', 'events_en_GB.bin'],
 	command: [find_program('windmc'), '-C', '65001', '-U', '-b', '-h', '@OUTDIR@', '-r', '@OUTDIR@', '@INPUT@'])
 
 vcs_file = vcs_tag(input: 'version.h.in', output: 'version.h')
@@ -63,7 +63,7 @@ executable('qmk-hid-identifyA',
 	source_files,
 	dependencies: cpp_libs)
 
-executable('qmk-hid-identifyW',
+executable('qmk-hid-identify',
 	source_files,
 	cpp_args: ['-DUNICODE'],
 	link_args: ['-municode'],
