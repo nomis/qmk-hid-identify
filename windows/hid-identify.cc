@@ -71,7 +71,7 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 			FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr));
 	if (!handle_) {
 		if (::GetLastError() == ERROR_ACCESS_DENIED) {
-			log(LogLevel::INFO, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_ACCESS_DENIED,
+			log(LogLevel::WARNING, LogCategory::UNSUPPORTED_DEVICE, LogMessage::DEV_ACCESS_DENIED,
 				0, ::gettext("Access denied"));
 		} else {
 			log(LogLevel::ERROR, LogCategory::IO_ERROR, LogMessage::DEV_OS_FUNC_ERROR_CODE_1,
