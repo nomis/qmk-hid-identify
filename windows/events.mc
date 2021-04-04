@@ -1,17 +1,36 @@
+;/*
+;	qmk-hid-identify - Identify the current OS to QMK device
+;	Copyright 2021  Simon Arlott
+;
+;	This program is free software: you can redistribute it and/or modify
+;	it under the terms of the GNU General Public License as published by
+;	the Free Software Foundation, either version 3 of the License, or
+;	(at your option) any later version.
+;
+;	This program is distributed in the hope that it will be useful,
+;	but WITHOUT ANY WARRANTY; without even the implied warranty of
+;	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;	GNU General Public License for more details.
+;
+;	You should have received a copy of the GNU General Public License
+;	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;*/
 ;#pragma once
 
 LanguageNames=(
 	en_GB=0x0809:en_GB
 )
 
-;// The "Event Viewer" application accesses categories via the "Windows Event
-;// Log" service which needs to have read access to the executable containing
-;// the message table.
-;//
-;// Using System.Diagnostics.EventLog in PowerShell will access categories
-;// directly as the current user.
-;//
-;// https://stackoverflow.com/a/48427494
+;/*
+; * The "Event Viewer" application accesses categories via the "Windows Event
+; * Log" service which needs to have read access to the executable containing
+; * the message table.
+; *
+; * Using System.Diagnostics.EventLog in PowerShell will access categories
+; * directly as the current user.
+; *
+; * https://stackoverflow.com/a/48427494
+; */
 
 MessageId=0x01
 SymbolicName=LOGGING_CATEGORY_REPORT_SENT_ID
@@ -45,9 +64,11 @@ Service
 
 ;#define LOGGING_CATEGORY_MAX 0x05
 
-;// The "Event Viewer" application accesses messages directly, so the current
-;// user needs to have read access to the executable containing the message
-;// table.
+;/*
+; * The "Event Viewer" application accesses messages directly, so the current
+; * user needs to have read access to the executable containing the message
+; * table.
+; */
 
 MessageId=0x100
 SymbolicName=LOGGING_MESSAGE_DEV_REPORT_SENT_ID
