@@ -22,115 +22,142 @@ LanguageNames=(
 )
 
 ;/*
+; * Logging categories are a 16 bit value. Category 0 indicates that there is
+; * is no category specified ("None") so it can't be used. The configuration
+; * of a category count implies that these should be numbered consecutively
+; * from 1 to allow the available values to be enumerated and labelled.
+; *
 ; * The "Event Viewer" application accesses categories via the "Windows Event
 ; * Log" service which needs to have read access to the executable containing
 ; * the message table.
-; *
-; * Using System.Diagnostics.EventLog in PowerShell will access categories
-; * directly as the current user.
-; *
-; * https://stackoverflow.com/a/48427494
 ; */
 
-MessageId=0x01
+MessageId=0x0001
 SymbolicName=LOGGING_CATEGORY_REPORT_SENT_ID
 Language=en_GB
 Report sent
 .
 
-MessageId=0x02
+MessageId=0x0002
 SymbolicName=LOGGING_CATEGORY_OS_ERROR_ID
 Language=en_GB
 OS Error
 .
 
-MessageId=0x03
+MessageId=0x0003
 SymbolicName=LOGGING_CATEGORY_IO_ERROR_ID
 Language=en_GB
 I/O Error
 .
 
-MessageId=0x04
+MessageId=0x0004
 SymbolicName=LOGGING_CATEGORY_UNSUPPORTED_DEVICE_ID
 Language=en_GB
 Unsupported device
 .
 
-MessageId=0x05
+MessageId=0x0005
 SymbolicName=LOGGING_CATEGORY_SERVICE_ID
 Language=en_GB
 Service
 .
 
-;#define LOGGING_CATEGORY_MAX 0x05
+;#define LOGGING_CATEGORY_MAX 0x0005
 
 ;/*
+; * Severity and Facility are advisory only but log viewers will consider the
+; * least significant 16 bits to be the "event ID" and the most significant
+; * 16 bits to be the "qualifiers". Messages are separate for the full 32 bit
+; * value. The event log type does not have to match the Severity.
+; *
 ; * The "Event Viewer" application accesses messages directly, so the current
 ; * user needs to have read access to the executable containing the message
 ; * table.
 ; */
 
-MessageId=0x100
+MessageId=0x0100
+Severity=Informational
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_REPORT_SENT_ID
 Language=en_GB
 %1!s!: Report sent
 .
 
-MessageId=0x110
+MessageId=0x0110
+Severity=Informational
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_NOT_ALLOWED_ID
 Language=en_GB
 %1!s!: Device not allowed
 .
 
-MessageId=0x111
+MessageId=0x0111
+Severity=Informational
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_UNKNOWN_USAGE_ID
 Language=en_GB
 %1!s!: Not a QMK raw HID device interface
 .
 
-MessageId=0x112
+MessageId=0x0112
+Severity=Informational
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_UNKNOWN_USB_INTERFACE_NUMBER_ID
 Language=en_GB
 %1!s!: Unknown USB interface number
 .
 
-MessageId=0x113
+MessageId=0x0113
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_NO_HID_ATTRIBUTES_ID
 Language=en_GB
 %1!s!: Unable to get HID attributes
 .
 
-MessageId=0x114
+MessageId=0x0114
+Severity=Warning
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_ACCESS_DENIED_ID
 Language=en_GB
 %1!s!: Access denied
 .
 
-MessageId=0x120
+MessageId=0x0120
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_REPORT_COUNT_TOO_SMALL_ID
 Language=en_GB
 %1!s!: Report count too small for message (%2!s! < %3!s!)
 .
 
-MessageId=0x121
+MessageId=0x0121
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_REPORT_LENGTH_TOO_SMALL_ID
 Language=en_GB
 %1!s!: Report length too small for message (%2!s! < %3!s!)
 .
 
-MessageId=0x130
+MessageId=0x0130
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_WRITE_FAILED_ID
 Language=en_GB
 %1!s!: WriteFile: %2!s!
 .
 
-MessageId=0x131
+MessageId=0x0131
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_WRITE_TIMEOUT_ID
 Language=en_GB
 %1!s!: Report send timed out
 .
 
-MessageId=0x132
+MessageId=0x0132
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_SHORT_WRITE_ID
 Language=en_GB
 %1!s!: Write completed with only %2!s! of %3!s! bytes written
@@ -141,18 +168,24 @@ Language=en_GB
 ;#define LOGGING_MESSAGE_DEV_MALFORMED_REPORT_DESCRIPTOR_ID 0
 
 MessageId=0x1000
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_OS_FUNC_ERROR_CODE_1_ID
 Language=en_GB
 %1!s!: %2!s!: %3!s!
 .
 
 MessageId=0x1001
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_OS_FUNC_ERROR_CODE_2_ID
 Language=en_GB
 %1!s!: %2!s!: %3!s!, %4!s!
 .
 
 MessageId=0x1002
+Severity=Error
+Facility=Application
 SymbolicName=LOGGING_MESSAGE_DEV_OS_FUNC_ERROR_PARAM_1_CODE_1_ID
 Language=en_GB
 %1!s!: %2!s!(%3!s!): %4!s!

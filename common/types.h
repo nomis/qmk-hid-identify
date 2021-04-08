@@ -31,7 +31,7 @@ namespace hid_identify {
 #	define LOGGING_LEVEL(name) name
 #endif
 
-enum class LogLevel {
+enum class LogLevel : unsigned short {
 	LOGGING_LEVEL(ERROR),
 	LOGGING_LEVEL(WARNING),
 	LOGGING_LEVEL(INFO),
@@ -45,7 +45,7 @@ enum class LogLevel {
 #	define LOGGING_CATEGORY(name) name
 #endif
 
-enum class LogCategory {
+enum class LogCategory : unsigned short {
 	LOGGING_CATEGORY(REPORT_SENT),
 	LOGGING_CATEGORY(OS_ERROR),
 	LOGGING_CATEGORY(IO_ERROR),
@@ -61,7 +61,7 @@ enum class LogCategory {
 #	define LOGGING_MESSAGE(name) name
 #endif
 
-enum class LogMessage {
+enum class LogMessage : unsigned int {
 	LOGGING_MESSAGE(DEV_REPORT_SENT),
 
 	LOGGING_MESSAGE(DEV_NOT_ALLOWED),
