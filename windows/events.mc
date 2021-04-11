@@ -231,6 +231,22 @@ Language=en_GB
 Service failed
 .
 
+MessageId=0x0210
+Severity=Error
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_MAIN_MUTEX_FAILURE_ID
+Language=en_GB
+Service main thread failed to acquire device queue mutex
+.
+
+MessageId=0x0211
+Severity=Error
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_CTRL_MUTEX_FAILURE_ID
+Language=en_GB
+Service control handler failed to acquire device queue mutex
+.
+
 MessageId=0x2000
 Severity=Error
 Facility=Application

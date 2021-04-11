@@ -23,7 +23,6 @@
 
 extern "C" {
 #include <hidsdi.h>
-#include <hidpi.h>
 }
 
 #ifndef NOGDI

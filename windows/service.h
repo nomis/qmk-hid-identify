@@ -18,12 +18,13 @@
 #pragma once
 
 #include <windows.h>
+#include <dbt.h>
 
 #ifndef NOGDI
 #	undef ERROR
 #endif
 
-#include <queue>
+#include <deque>
 
 #include "../common/types.h"
 #include "windows++.h"
@@ -43,11 +44,17 @@ public:
 	void main();
 
 private:
-	static DWORD control_callback(DWORD code, DWORD type, LPVOID event,
+	static DWORD control_callback(DWORD code, DWORD ev_type, LPVOID ev_data,
 		LPVOID context);
 
 	DWORD run();
-	DWORD control(DWORD code, DWORD type, LPVOID event);
+	DWORD startup();
+	DWORD queue_all_devices();
+	DWORD process_events();
+	DWORD report_one_device();
+
+	DWORD control(DWORD code, DWORD ev_type, LPVOID ev_data);
+	void device_arrival(DEV_BROADCAST_DEVICEINTERFACE *dev_hdr);
 
 	void report_status(DWORD state, DWORD exit_code, DWORD service_exit_code,
 		DWORD wait_hint_ms, DWORD check_point);
@@ -61,9 +68,12 @@ private:
 
 	win32::wrapped_ptr<HANDLE, ::DeregisterEventSource> event_log_;
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> stop_event_;
+	win32::wrapped_ptr<HANDLE, ::CloseHandle> device_event_;
+	win32::wrapped_ptr<HDEVNOTIFY, ::UnregisterDeviceNotification> device_notification_;
 	SERVICE_STATUS_HANDLE status_;
 
-	std::queue<win32::native_string> devices_;
+	win32::wrapped_ptr<HANDLE, ::CloseHandle> devices_mutex_;
+	std::deque<win32::native_string> devices_;
 };
 
 } // namespace hid_identify

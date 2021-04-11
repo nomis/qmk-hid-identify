@@ -18,6 +18,11 @@
 #include "service.h"
 
 #include <windows.h>
+#include <dbt.h>
+
+extern "C" {
+#include <hidsdi.h>
+}
 
 #ifndef NOGDI
 #	undef ERROR
@@ -102,8 +107,26 @@ void WindowsHIDService::main() {
 }
 
 DWORD WindowsHIDService::run() {
+	DWORD ret;
+
 	status_pending(SERVICE_START_PENDING, 5000, 1);
 
+	ret = startup();
+	if (ret != NO_ERROR) {
+		return ret;
+	}
+
+	status_ok(SERVICE_RUNNING);
+
+	ret = queue_all_devices();
+	if (ret != NO_ERROR) {
+		return ret;
+	}
+
+	return process_events();
+}
+
+DWORD WindowsHIDService::startup() {
 	::SetLastError(0);
 	stop_event_ = win32::wrap_generic_handle(::CreateEvent(nullptr, true, false, nullptr));
 	if (!stop_event_) {
@@ -113,52 +136,133 @@ DWORD WindowsHIDService::run() {
 		return error;
 	}
 
-	status_ok(SERVICE_RUNNING);
-
-	for (auto& device : enumerate_devices()) {
-		devices_.emplace(device);
+	::SetLastError(0);
+	device_event_ = win32::wrap_generic_handle(::CreateEvent(nullptr, false, false, nullptr));
+	if (!device_event_) {
+		auto error = ::GetLastError();
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "CreateEvent", win32::hex_error(error).c_str());
+		return error;
 	}
 
-	while (1) {
-		DWORD wait_ms = INFINITE;
+	::SetLastError(0);
+	devices_mutex_ = win32::wrap_generic_handle(::CreateMutex(nullptr, false, nullptr));
+	if (!device_event_) {
+		auto error = ::GetLastError();
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "CreateMutex", win32::hex_error(error).c_str());
+		return error;
+	}
 
-		if (!devices_.empty()) {
-			auto device = devices_.front();
-			devices_.pop();
+	DEV_BROADCAST_DEVICEINTERFACE filter{};
+	filter.dbcc_size = sizeof(filter);
+	filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+	::HidD_GetHidGuid(&filter.dbcc_classguid);
 
-			try {
-				WindowsHIDDevice(device).identify();
-			} catch (const Exception&) {
-				// ignored
-			}
+	::SetLastError(0);
+	device_notification_ = win32::wrap_generic<HDEVNOTIFY, ::UnregisterDeviceNotification>(
+		::RegisterDeviceNotification(status_, &filter, DEVICE_NOTIFY_SERVICE_HANDLE));
+	if (!device_notification_) {
+		auto error = ::GetLastError();
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
+			2, ::gettext("%s: %s"), "RegisterDeviceNotification", win32::hex_error(error).c_str());
+		return error;
+	}
+
+	return NO_ERROR;
+}
+
+DWORD WindowsHIDService::queue_all_devices() {
+	for (auto& device : enumerate_devices()) {
+		auto lock = win32::acquire_mutex(devices_mutex_.get());
+		if (!lock) {
+			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_MAIN_MUTEX_FAILURE,
+				0, ::gettext("Service main thread failed to acquire device queue mutex"));
+			return ERROR_SERVICE_SPECIFIC_ERROR;
 		}
+		devices_.emplace_back(std::move(device));
+	}
 
-		if (!devices_.empty()) {
+	return NO_ERROR;
+}
+
+DWORD WindowsHIDService::process_events() {
+	const std::array<HANDLE, 2> wait_handles{
+		{
+			stop_event_.get(),
+			device_event_.get()
+		}
+	};
+
+	while (1) {
+		DWORD ret = report_one_device();
+		DWORD wait_ms;
+
+		if (ret == NO_ERROR) {
+			// check for service stop between every device
 			wait_ms = 0;
+		} else if (ret == ERROR_NO_MORE_FILES) {
+			wait_ms = INFINITE;
+		} else if (ret != NO_ERROR) {
+			return ret;
 		}
 
 		::SetLastError(0);
-		DWORD ret = ::WaitForSingleObject(stop_event_.get(), wait_ms);
-		if (ret == WAIT_OBJECT_0) {
+		ret = ::WaitForMultipleObjects(wait_handles.size(),
+			wait_handles.data(), FALSE, wait_ms);
+		if (ret == WAIT_OBJECT_0) { // stop_event_
 			return NO_ERROR;
+		} else if (ret == WAIT_OBJECT_0 + 1) { // device_event_
+			// continue
 		} else if (ret != WAIT_TIMEOUT) {
 			auto error = ::GetLastError();
 			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
-				3, ::gettext("%s: %s, %s"), "WaitForSingleObject",
+				3, ::gettext("%s: %s, %s"), "WaitForMultipleObjects",
 				std::to_string(ret).c_str(), win32::hex_error(error).c_str());
 			return error;
 		}
 	}
 }
 
-DWORD WindowsHIDService::control_callback(DWORD code, DWORD type,
-		LPVOID event, LPVOID context) {
-	WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
-	return service->control(code, type, event);
+DWORD WindowsHIDService::report_one_device() {
+	auto lock = win32::acquire_mutex(devices_mutex_.get());
+	if (!lock) {
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_MAIN_MUTEX_FAILURE,
+			0, ::gettext("Service main thread failed to acquire device queue mutex"));
+		return ERROR_SERVICE_SPECIFIC_ERROR;
+	}
+
+	bool empty = true;
+	if (!devices_.empty()) {
+		auto device = devices_.front();
+		devices_.pop_front();
+		empty = devices_.empty();
+		if (empty) {
+			devices_.shrink_to_fit();
+		}
+		lock.reset();
+
+		try {
+			WindowsHIDDevice(device).identify();
+		} catch (const Exception&) {
+			// ignored
+		}
+	}
+
+	if (empty) {
+		return ERROR_NO_MORE_FILES;
+	} else {
+		return NO_ERROR;
+	}
 }
 
-DWORD WindowsHIDService::control(DWORD code, DWORD type __attribute__((unused)),
-		LPVOID event __attribute__((unused))) {
+DWORD WindowsHIDService::control_callback(DWORD code, DWORD ev_type,
+		LPVOID ev_data, LPVOID context) {
+	WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
+	return service->control(code, ev_type, ev_data);
+}
+
+DWORD WindowsHIDService::control(DWORD code, DWORD ev_type, LPVOID ev_data) {
 	switch (code) {
 		case SERVICE_CONTROL_INTERROGATE:
 			return NO_ERROR;
@@ -168,9 +272,48 @@ DWORD WindowsHIDService::control(DWORD code, DWORD type __attribute__((unused)),
 			::SetEvent(stop_event_.get());
 			return NO_ERROR;
 
+		case SERVICE_CONTROL_DEVICEEVENT:
+			if (ev_type == DBT_DEVICEARRIVAL) {
+				device_arrival(static_cast<DEV_BROADCAST_DEVICEINTERFACE*>(ev_data));
+			}
+			return NO_ERROR;
+
 		default:
 			return ERROR_CALL_NOT_IMPLEMENTED;
 	}
+}
+
+void WindowsHIDService::device_arrival(DEV_BROADCAST_DEVICEINTERFACE *dev) {
+	if (dev == nullptr) {
+		return;
+	}
+
+	if (dev->dbcc_devicetype != DBT_DEVTYP_DEVICEINTERFACE) {
+		return;
+	}
+
+	auto lock = win32::acquire_mutex(devices_mutex_.get());
+	if (!lock) {
+		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_CTRL_MUTEX_FAILURE,
+			0, ::gettext("Service control handler failed to acquire device queue mutex"));
+		status_pending(SERVICE_STOP_PENDING, 5000, 1);
+		::SetEvent(stop_event_.get());
+		return;
+	}
+#ifdef UNICODE
+	devices_.emplace_back(dev->dbcc_name);
+#else
+	/*
+	 * "When this structure is returned to a window through the WM_DEVICECHANGE
+	 * message, the dbcc_name string is converted to ANSI as appropriate.
+	 * Services always receive a Unicode string, whether they call
+	 * RegisterDeviceNotificationW or RegisterDeviceNotificationA."
+	 *
+	 * https://docs.microsoft.com/en-us/windows/win32/api/dbt/ns-dbt-dev_broadcast_deviceinterface_a
+	 */
+	devices_.emplace_back(win32::unicode_to_ansi_string(reinterpret_cast<wchar_t*>(dev->dbcc_name)));
+#endif
+	::SetEvent(device_event_.get());
 }
 
 void WindowsHIDService::report_status(DWORD state, DWORD exit_code,

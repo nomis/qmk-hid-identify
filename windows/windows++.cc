@@ -47,6 +47,16 @@ wrapped_ptr<HKEY, ::RegCloseKey> wrap_reg_key(HKEY key) {
 	return wrap_generic<HKEY, ::RegCloseKey>(key);
 }
 
+wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms) {
+	switch (::WaitForSingleObject(mutex, timeout_ms)) {
+	case WAIT_OBJECT_0:
+		return wrap_generic<HANDLE, ::ReleaseMutex>(mutex);
+
+	default:
+		return {};
+	}
+}
+
 #ifdef UNICODE
 std::string to_string(const native_char *text, ssize_t wlen) {
 	int len = ::WideCharToMultiByte(CP_UTF8, 0, text, wlen, nullptr, 0, nullptr, nullptr);
@@ -78,6 +88,23 @@ std::string to_string(const native_char *text, ssize_t len) {
 		return std::string{text};
 	} else {
 		return std::string{text, (size_t)len};
+	}
+}
+
+std::string unicode_to_ansi_string(const wchar_t *text, ssize_t wlen) {
+	int len = ::WideCharToMultiByte(CP_OEMCP, 0, text, wlen, nullptr, 0, nullptr, nullptr);
+	if (len > 0) {
+		auto buf = std::vector<char>(len);
+
+		len = ::WideCharToMultiByte(CP_OEMCP, 0, text, wlen, buf.data(), buf.size(), nullptr, nullptr);
+
+		if (wlen != -1) {
+			return std::string{buf.data(), (size_t)len};
+		} else {
+			return std::string{buf.data()};
+		}
+	} else {
+		return "";
 	}
 }
 

@@ -140,6 +140,8 @@ sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 	return sized_data<T, Size>{data, size};
 }
 
+wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms = INFINITE);
+
 #ifdef UNICODE
 using native_string = std::wstring;
 static constexpr std::wistream &cin = std::wcin;
@@ -156,6 +158,8 @@ static constexpr std::ostream &cerr = std::cerr;
 static constexpr std::ostream &clog = std::clog;
 
 std::string to_string(const char *text, ssize_t len = -1);
+
+std::string unicode_to_ansi_string(const wchar_t *text, ssize_t wlen = -1);
 #endif
 
 using native_char = typename native_string::value_type;
