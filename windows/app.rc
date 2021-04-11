@@ -14,7 +14,9 @@
 	{
 		BLOCK "0809FDE9"
 		{
-			VALUE "LegalCopyright", "Copyright \xA92021  Simon Arlott\r\n\r\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\r\n\r\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.\r\n\r\nYou should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>."
+			VALUE "LegalCopyright", "Copyright \xC2\xA92021  Simon Arlott\r\n\r\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\r\n\r\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.\r\n\r\nYou should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>."
+			VALUE "CompanyName", "Simon Arlott"
+			VALUE "FileDescription", "QMK HID Identify"
 			VALUE "ProductName", "QMK HID Identify"
 			VALUE "ProductVersion", VCS_TAG
 		}
