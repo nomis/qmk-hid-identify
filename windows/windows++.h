@@ -118,24 +118,6 @@ private:
 template <class T, class Size>
 using sized_func_t = std::function<BOOLEAN(T *data, Size size, Size *required_size)>;
 
-#ifdef UNICODE
-using native_string = std::wstring;
-static constexpr std::wistream &cin = std::wcin;
-static constexpr std::wostream &cout = std::wcout;
-static constexpr std::wostream &cerr = std::wcerr;
-static constexpr std::wostream &clog = std::wclog;
-
-std::string to_string(const wchar_t *text, ssize_t wlen = -1);
-#else
-using native_string = std::string;
-static constexpr std::istream &cin = std::cin;
-static constexpr std::ostream &cout = std::cout;
-static constexpr std::ostream &cerr = std::cerr;
-static constexpr std::ostream &clog = std::clog;
-
-std::string to_string(const char *text, ssize_t len = -1);
-#endif
-
 template <class T, class Size>
 sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 	Size required_size = 0;
@@ -157,6 +139,24 @@ sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 
 	return sized_data<T, Size>{data, size};
 }
+
+#ifdef UNICODE
+using native_string = std::wstring;
+static constexpr std::wistream &cin = std::wcin;
+static constexpr std::wostream &cout = std::wcout;
+static constexpr std::wostream &cerr = std::wcerr;
+static constexpr std::wostream &clog = std::wclog;
+
+std::string to_string(const wchar_t *text, ssize_t wlen = -1);
+#else
+using native_string = std::string;
+static constexpr std::istream &cin = std::cin;
+static constexpr std::ostream &cout = std::cout;
+static constexpr std::ostream &cerr = std::cerr;
+static constexpr std::ostream &clog = std::clog;
+
+std::string to_string(const char *text, ssize_t len = -1);
+#endif
 
 using native_char = typename native_string::value_type;
 
