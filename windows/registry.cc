@@ -15,6 +15,8 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+#include "registry.h"
+
 #include <windows.h>
 #include <ktmw32.h>
 
@@ -22,7 +24,6 @@
 #	undef ERROR
 #endif
 
-#include "events.h"
 #include "hid-identify.h"
 #include "../common/types.h"
 #include "windows++.h"
@@ -106,8 +107,9 @@ void registry_add_event_log(bool verbose) {
 
 	SetLastError(0);
 	if (!::CommitTransaction(txn.get())) {
+		auto error = ::GetLastError();
 		win32::cerr << "CommitTransaction returned "
-			<< win32::ascii_to_native_string(win32::last_error()) << std::endl;
+			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
 		throw OSError{};
 	}
 	if (verbose) {
@@ -137,8 +139,9 @@ void registry_remove_event_log(bool verbose) {
 
 	SetLastError(0);
 	if (!::CommitTransaction(txn.get())) {
+		auto error = ::GetLastError();
 		win32::cerr << "CommitTransaction returned "
-			<< win32::ascii_to_native_string(win32::last_error()) << std::endl;
+			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
 		throw OSError{};
 	}
 

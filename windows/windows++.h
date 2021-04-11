@@ -23,6 +23,7 @@
 #	undef ERROR
 #endif
 
+#include <cstdarg>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -111,32 +112,11 @@ public:
 	}
 
 private:
-	const Size size_;
+	Size size_;
 };
 
 template <class T, class Size>
 using sized_func_t = std::function<BOOLEAN(T *data, Size size, Size *required_size)>;
-
-template <class T, class Size>
-sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
-	Size size = 0;
-
-	SetLastError(0);
-	auto ret = sized_func(nullptr, 0, &size);
-	if (!ret && GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-		return {};
-	}
-
-	auto data = make_generic<T>(size);
-
-	SetLastError(0);
-	ret = sized_func(data.get(), size, nullptr);
-	if (!ret) {
-		return {};
-	}
-
-	return sized_data<T, Size>{data, size};
-}
 
 #ifdef UNICODE
 using native_string = std::wstring;
@@ -155,6 +135,28 @@ static constexpr std::ostream &clog = std::clog;
 
 std::string to_string(const char *text, ssize_t len = -1);
 #endif
+
+template <class T, class Size>
+sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
+	Size required_size = 0;
+
+	::SetLastError(0);
+	auto ret = sized_func(nullptr, 0, &required_size);
+	if (!ret && ::GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+		return {};
+	}
+
+	Size size = required_size;
+	auto data = make_generic<T>(size);
+
+	::SetLastError(0);
+	ret = sized_func(data.get(), size, &required_size);
+	if (!ret) {
+		return {};
+	}
+
+	return sized_data<T, Size>{data, size};
+}
 
 using native_char = typename native_string::value_type;
 
@@ -175,7 +177,13 @@ inline bool isxdigit(native_char ch) {
 std::vector<native_string> reg_multi_sz(const native_string &text);
 
 std::string hex_error(DWORD error);
-std::string last_error();
+
+void log(HANDLE event_source, WORD type, WORD category, DWORD id,
+	int argc, const char *format...);
+
+void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
+		const native_string *prefix, int argc, const char *format,
+		std::va_list argv, bool console = true);
 
 native_string current_process_filename();
 bool is_elevated();

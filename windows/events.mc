@@ -190,3 +190,59 @@ SymbolicName=LOGGING_MESSAGE_DEV_OS_FUNC_ERROR_PARAM_1_CODE_1_ID
 Language=en_GB
 %1!s!: %2!s!(%3!s!): %4!s!
 .
+
+MessageId=0x0200
+Severity=Informational
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_STARTING_ID
+Language=en_GB
+Service starting
+.
+
+MessageId=0x0201
+Severity=Informational
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_STARTED_ID
+Language=en_GB
+Service started
+.
+
+MessageId=0x0202
+Severity=Informational
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_STOPPING_ID
+Language=en_GB
+Service stopping
+.
+
+MessageId=0x0203
+Severity=Informational
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_STOPPED_ID
+Language=en_GB
+Service stopped
+.
+
+MessageId=0x0204
+Severity=Error
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_FAILED_ID
+Language=en_GB
+Service failed
+.
+
+MessageId=0x2000
+Severity=Error
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_OS_FUNC_ERROR_CODE_1_ID
+Language=en_GB
+%1!s!: %2!s!
+.
+
+MessageId=0x2001
+Severity=Error
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_OS_FUNC_ERROR_CODE_2_ID
+Language=en_GB
+%1!s!: %2!s!, %3!s!
+.

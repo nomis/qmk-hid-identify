@@ -4,6 +4,7 @@ project('qmk-hid-identify',
 		'cpp_std=c++17',
 		'warning_level=3',
 		'werror=true',
+		'b_lto=false', # Conflicts with -municode -static
 	],
 	license: 'GPL3+',
 	meson_version: '>=0.53.0',
@@ -29,6 +30,8 @@ source_files = [
 		'hid-enumerate.cc',
 		'hid-identify.cc',
 		'registry.cc',
+		'service.cc',
+		'service-control.cc',
 		'windows++.cc',
 		'../common/hid-device.cc',
 		'../common/usb-vid-pid.cc',
@@ -52,6 +55,8 @@ add_project_arguments('-DNOGDI', language: 'cpp')
 add_project_arguments('-DLPLOGFONTA=LPVOID', language: 'cpp')
 add_project_arguments('-DLPLOGFONTW=LPVOID', language: 'cpp')
 add_project_arguments('-DLPDEVMODE=LPVOID', language: 'cpp')
+
+add_project_link_arguments('-static', language: 'cpp')
 
 cpp_libs = [
 	cpp.find_library('setupapi'),

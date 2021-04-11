@@ -19,8 +19,14 @@
 
 #include <windows.h>
 
+#ifndef NOGDI
+#	undef ERROR
+#endif
+
 #include <cstdio>
+#include <cstdarg>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace win32 {
@@ -107,8 +113,72 @@ std::string hex_error(DWORD error) {
 	return {text.data()};
 }
 
-std::string last_error() {
-	return hex_error(GetLastError());
+void log(HANDLE event_source, WORD type, WORD category, DWORD id,
+		int argc, const char *format...) {
+	std::va_list argv;
+	va_start(argv, format);
+	vlog(event_source, type, category, id, nullptr, argc, format, argv);
+	va_end(argv);
+}
+
+void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
+		const native_string *prefix, int argc, const char *format,
+		std::va_list argv, bool console) {
+	std::va_list args_fallback;
+	va_copy(args_fallback, argv);
+
+	int prefix_count = (prefix != nullptr) ? 1 : 0;
+	std::vector<std::vector<win32::native_char>> ev_strings;
+	std::vector<const win32::native_char*> ev_string_ptrs(prefix_count + argc);
+
+	ev_strings.reserve(prefix_count + argc);
+	if (prefix != nullptr) {
+		ev_strings.emplace_back(prefix->c_str(), prefix->c_str() + prefix->length() + 1);
+		ev_string_ptrs[0] = ev_strings.back().data();
+	}
+
+	for (int i = 0; i < argc; i++) {
+		auto value = win32::ascii_to_native_string(va_arg(argv, char*));
+
+		ev_strings.emplace_back(value.c_str(), value.c_str() + value.length() + 1);
+		ev_string_ptrs[prefix_count + i] = ev_strings.back().data();
+	}
+
+	if (event_source != nullptr) {
+		::ReportEvent(event_source, type, category, id, nullptr,
+			ev_string_ptrs.size(), 0, ev_string_ptrs.data(), nullptr);
+	}
+
+	if (console) {
+		auto &out = (type == EVENTLOG_INFORMATION_TYPE) ? cout : cerr;
+
+		::SetLastError(0);
+		auto formatted_text = win32::wrap_output<LPTSTR, ::LocalFree>(
+			[&] (LPTSTR &data) {
+				return FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
+						| FORMAT_MESSAGE_FROM_HMODULE
+						| FORMAT_MESSAGE_ARGUMENT_ARRAY,
+					nullptr, static_cast<DWORD>(id), 0,
+					reinterpret_cast<LPTSTR>(&data), 0,
+					reinterpret_cast<va_list*>(const_cast<DWORD_PTR*>(reinterpret_cast<const DWORD_PTR*>(ev_string_ptrs.data()))));
+			});
+		if (formatted_text) {
+			out << formatted_text.get() << std::flush;
+		} else {
+			std::vector<char> text(win32::max_path + 1024);
+
+			if (std::vsnprintf(text.data(), text.size(), format, args_fallback) < 0) {
+				text[0] = '?';
+				text[1] = '\0';
+			}
+
+			if (prefix != nullptr) {
+				out << *prefix << ": ";
+			}
+			out << text.data() << std::endl;
+		}
+	}
+	::va_end(args_fallback);
 }
 
 native_string current_process_filename() {
@@ -117,7 +187,8 @@ native_string current_process_filename() {
 	::SetLastError(0);
 	DWORD ret = ::GetModuleFileName(nullptr, filename.data(), filename.size());
 	if (ret == 0 || ret == ERROR_INSUFFICIENT_BUFFER) {
-		throw std::runtime_error{"GetModuleFileName returned " + win32::last_error()};
+		auto error = ::GetLastError();
+		throw std::runtime_error{"GetModuleFileName returned " + win32::hex_error(error)};
 	}
 
 	return {filename.data()};
@@ -134,7 +205,8 @@ bool is_elevated() {
 				0, 0, 0, 0, 0, 0, &data);
 		});
 	if (!admins) {
-		throw std::runtime_error{"AllocateAndInitializeSid returned " + win32::last_error()};
+		auto error = ::GetLastError();
+		throw std::runtime_error{"AllocateAndInitializeSid returned " + win32::hex_error(error)};
 	}
 
 	// Determine whether the SID of administrators group is enabled in
@@ -142,7 +214,8 @@ bool is_elevated() {
 	BOOL admin = false;
 	::SetLastError(0);
 	if (!::CheckTokenMembership(nullptr, admins.get(), &admin)) {
-		throw std::runtime_error{"CheckTokenMembership returned " + win32::last_error()};
+		auto error = ::GetLastError();
+		throw std::runtime_error{"CheckTokenMembership returned " + win32::hex_error(error)};
 	}
 
 	return admin;
@@ -184,7 +257,8 @@ int run_elevated(const std::vector<native_string> &parameters) {
 
 	::SetLastError(0);
 	if (!::ShellExecuteEx(&exec_info)) {
-		throw std::runtime_error{"ShellExecuteEx returned " + win32::last_error()};
+		auto error = ::GetLastError();
+		throw std::runtime_error{"ShellExecuteEx returned " + win32::hex_error(error)};
 	}
 
 	auto process = wrap_generic_handle(exec_info.hProcess);
@@ -192,14 +266,16 @@ int run_elevated(const std::vector<native_string> &parameters) {
 		::SetLastError(0);
 		DWORD ret = ::WaitForSingleObject(process.get(), INFINITE);
 		if (ret != WAIT_OBJECT_0) {
+			auto error = ::GetLastError();
 			throw std::runtime_error{"WaitForSingleObject returned "
-				+ std::to_string(ret) + ", " + win32::last_error()};
+				+ std::to_string(ret) + ", " + win32::hex_error(error)};
 		}
 
 		DWORD exit_code = 0;
 		::SetLastError(0);
 		if (!::GetExitCodeProcess(process.get(), &exit_code)) {
-			throw std::runtime_error{"GetExitCodeProcess returned " + win32::last_error()};
+			auto error = ::GetLastError();
+			throw std::runtime_error{"GetExitCodeProcess returned " + win32::hex_error(error)};
 		}
 
 		return exit_code;

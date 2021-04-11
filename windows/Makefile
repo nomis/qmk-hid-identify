@@ -24,7 +24,7 @@ $(BUILD_DIR)/:
 $(RELEASE_DIR)/: | $(BUILD_DIR)/
 	rm -rf "$(RELEASE_DIR)/"
 	mkdir $(RELEASE_DIR)/
-	meson --buildtype=release $(RELEASE_DIR)/ -Db_lto=true $(MESON_CROSS) $(MESON_OPTS) || (rm -rf "$(RELEASE_DIR)/"; false)
+	meson --buildtype=release $(RELEASE_DIR)/ $(MESON_CROSS) $(MESON_OPTS) || (rm -rf "$(RELEASE_DIR)/"; false)
 $(DEBUG_DIR)/: | $(BUILD_DIR)/
 	rm -rf "$(DEBUG_DIR)/"
 	mkdir $(DEBUG_DIR)/

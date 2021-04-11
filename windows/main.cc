@@ -21,6 +21,7 @@
 #	undef ERROR
 #endif
 
+#include <exception>
 #include <functional>
 #include <iomanip>
 #include <map>
@@ -29,6 +30,8 @@
 #include "hid-enumerate.h"
 #include "hid-identify.h"
 #include "registry.h"
+#include "service.h"
+#include "service-control.h"
 #include "../common/types.h"
 #include "windows++.h"
 
@@ -78,11 +81,13 @@ static void usage(const win32::native_string &name) {
 }
 
 static int command_install() {
-	return 1;
+	service_install();
+	return 0;
 }
 
 static int command_uninstall() {
-	return 1;
+	service_uninstall();
+	return 0;
 }
 
 static int command_register() {
@@ -107,10 +112,6 @@ static int command_report() {
 	}
 
 	return exit_ret;
-}
-
-static int command_service() {
-	return 1;
 }
 
 int
@@ -153,6 +154,9 @@ main
 		return command->second.function();
 	} catch (const Exception&) {
 		return 1;
+	} catch (const std::exception &e) {
+		win32::cerr << e.what() << std::endl;
+		return 2;
 	} catch (...) {
 		throw;
 	}
