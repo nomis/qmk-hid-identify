@@ -28,8 +28,9 @@
 
 namespace hid_identify {
 
-static const win32::native_string SVC_NAME = TEXT("qmk-hid-identify");
-static const win32::native_string SVC_DESC = TEXT("QMK HID Identify");
+static const win32::native_string SVC_KEY = TEXT("qmk-hid-identify");
+static const win32::native_string SVC_NAME = TEXT("QMK HID Identify");
+static const win32::native_string SVC_DESC = TEXT("Identify the current OS to connected QMK HID devices");
 
 int command_service();
 

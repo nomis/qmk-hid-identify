@@ -38,7 +38,7 @@ namespace hid_identify {
 
 int command_service() {
 	static WindowsHIDService service;
-	std::vector<win32::native_char> name{SVC_NAME.c_str(), SVC_NAME.c_str() + SVC_NAME.length() + 1};
+	std::vector<win32::native_char> name{SVC_KEY.c_str(), SVC_KEY.c_str() + SVC_KEY.length() + 1};
 	std::array<SERVICE_TABLE_ENTRY, 2> dispatch_table{
 		{
 			{ name.data(), [] (DWORD, LPTSTR[]) {
@@ -78,7 +78,7 @@ WindowsHIDService::WindowsHIDService() {
 
 void WindowsHIDService::main() {
 	::SetLastError(0);
-	status_ = ::RegisterServiceCtrlHandlerEx(SVC_NAME.c_str(),
+	status_ = ::RegisterServiceCtrlHandlerEx(SVC_KEY.c_str(),
 		&WindowsHIDService::control_callback, this);
 	if (status_ == 0) {
 		auto error = ::GetLastError();

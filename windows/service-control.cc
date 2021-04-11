@@ -115,11 +115,11 @@ void service_install() {
 	auto service = win32::wrap_generic<SC_HANDLE, ::CloseServiceHandle>(
 		::CreateService(
 			manager.get(),
+			SVC_KEY.c_str(),
 			SVC_NAME.c_str(),
-			SVC_DESC.c_str(),
 			SERVICE_ALL_ACCESS,
 			SERVICE_WIN32_OWN_PROCESS,
-			SERVICE_DEMAND_START,
+			SERVICE_AUTO_START,
 			SERVICE_ERROR_NORMAL,
 			exec_command.c_str(),
 			nullptr,
@@ -136,7 +136,7 @@ void service_install() {
 			service = win32::wrap_generic<SC_HANDLE, ::CloseServiceHandle>(
 				::OpenService(
 					manager.get(),
-					SVC_NAME.c_str(),
+					SVC_KEY.c_str(),
 					SERVICE_ALL_ACCESS));
 			if (!service) {
 				error = ::GetLastError();
@@ -144,6 +144,26 @@ void service_install() {
 					<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
 				throw OSError{};
 			}
+
+			::SetLastError(0);
+			if (!::ChangeServiceConfig(
+					service.get(),
+					SERVICE_WIN32_OWN_PROCESS,
+					SERVICE_AUTO_START,
+					SERVICE_ERROR_NORMAL,
+					exec_command.c_str(),
+					nullptr,
+					nullptr,
+					nullptr,
+					nullptr,
+					nullptr,
+					SVC_NAME.c_str())) {
+				error = ::GetLastError();
+				win32::cerr << "ChangeServiceConfig returned "
+					<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
+				throw OSError{};
+			}
+
 		} else {
 			win32::cerr << "CreateService returned "
 				<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
@@ -151,6 +171,16 @@ void service_install() {
 		}
 	} else {
 		win32::cout << "Service installed" << std::endl;
+	}
+
+	::SetLastError(0);
+	std::vector<win32::native_char> desc{SVC_DESC.c_str(), SVC_DESC.c_str() + SVC_DESC.length() + 1};
+	SERVICE_DESCRIPTION svc_desc{desc.data()};
+	if (!::ChangeServiceConfig2(service.get(), SERVICE_CONFIG_DESCRIPTION, &svc_desc)) {
+		auto error = ::GetLastError();
+		win32::cerr << "ChangeServiceConfig2 returned "
+			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
+		throw OSError{};
 	}
 
 	::SetLastError(0);
@@ -190,7 +220,7 @@ void service_uninstall() {
 	auto service = win32::wrap_generic<SC_HANDLE, ::CloseServiceHandle>(
 		::OpenService(
 			manager.get(),
-			SVC_NAME.c_str(),
+			SVC_KEY.c_str(),
 			SERVICE_ALL_ACCESS));
 	if (!service) {
 		auto error = ::GetLastError();
