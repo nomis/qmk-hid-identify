@@ -42,7 +42,7 @@ int command_service() {
 	std::array<SERVICE_TABLE_ENTRY, 2> dispatch_table{
 		{
 			{ name.data(), [] (DWORD, LPTSTR[]) {
-					return service.main();
+					service.main();
 				}
 			},
 			{ nullptr, nullptr }
@@ -87,6 +87,20 @@ void WindowsHIDService::main() {
 		throw OSError{};
 	}
 
+	try {
+		DWORD exit_code = run();
+		if (exit_code == NO_ERROR) {
+			status_ok(SERVICE_STOPPED);
+		} else {
+			status_error(exit_code);
+		}
+	} catch (...) {
+		status_error(ERROR_SERVICE_SPECIFIC_ERROR, 1);
+		throw;
+	}
+}
+
+DWORD WindowsHIDService::run() {
 	status_pending(SERVICE_START_PENDING, 5000, 1);
 
 	::SetLastError(0);
@@ -95,8 +109,7 @@ void WindowsHIDService::main() {
 		auto error = ::GetLastError();
 		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
 			2, ::gettext("%s: %s"), "CreateEvent", win32::hex_error(error).c_str());
-		status_error(error);
-		return;
+		return error;
 	}
 
 	status_ok(SERVICE_RUNNING);
@@ -109,14 +122,13 @@ void WindowsHIDService::main() {
 			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
 				3, ::gettext("%s: %s, %s"), "WaitForSingleObject",
 				std::to_string(ret), win32::hex_error(error).c_str());
-			status_error(error);
-			return;
+			return error;
 		} else {
 			break;
 		}
 	}
 
-	status_ok(SERVICE_STOPPED);
+	return NO_ERROR;
 }
 
 DWORD WindowsHIDService::control_callback(DWORD code, DWORD type,
@@ -141,8 +153,8 @@ DWORD WindowsHIDService::control(DWORD code, DWORD type __attribute__((unused)),
 	}
 }
 
-void WindowsHIDService::report_status(DWORD state, DWORD exit_code, DWORD wait_hint_ms,
-		DWORD check_point) {
+void WindowsHIDService::report_status(DWORD state, DWORD exit_code,
+		DWORD service_exit_code, DWORD wait_hint_ms, DWORD check_point) {
 	SERVICE_STATUS status{};
 
 	status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
@@ -151,6 +163,7 @@ void WindowsHIDService::report_status(DWORD state, DWORD exit_code, DWORD wait_h
 		status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
 	}
 	status.dwWin32ExitCode = exit_code;
+	status.dwServiceSpecificExitCode = service_exit_code;
 	status.dwCheckPoint = check_point;
 	status.dwWaitHint = wait_hint_ms;
 
@@ -165,7 +178,7 @@ void WindowsHIDService::status_ok(DWORD state) {
 		log(LogLevel::INFO, LogCategory::SERVICE, LogMessage::SVC_STOPPED,
 			0, ::gettext("Service stopped"));
 	}
-	report_status(state, NO_ERROR, 0, 0);
+	report_status(state, NO_ERROR, 0, 0, 0);
 }
 
 void WindowsHIDService::status_pending(DWORD state, DWORD wait_hint_ms,
@@ -177,13 +190,13 @@ void WindowsHIDService::status_pending(DWORD state, DWORD wait_hint_ms,
 		log(LogLevel::INFO, LogCategory::SERVICE, LogMessage::SVC_STOPPING,
 			0, ::gettext("Service stopping"));
 	}
-	report_status(state, NO_ERROR, wait_hint_ms, check_point);
+	report_status(state, NO_ERROR, 0, wait_hint_ms, check_point);
 }
 
-void WindowsHIDService::status_error(DWORD exit_code) {
+void WindowsHIDService::status_error(DWORD exit_code, DWORD service_exit_code) {
 	log(LogLevel::ERROR, LogCategory::SERVICE, LogMessage::SVC_FAILED,
 		0, ::gettext("Service failed"));
-	report_status(SERVICE_STOPPED, exit_code, 0, 0);
+	report_status(SERVICE_STOPPED, exit_code, service_exit_code, 0, 0);
 }
 
 void WindowsHIDService::log(LogLevel level, LogCategory category,

@@ -43,14 +43,15 @@ private:
 	static DWORD control_callback(DWORD code, DWORD type, LPVOID event,
 		LPVOID context);
 
+	DWORD run();
 	DWORD control(DWORD code, DWORD type, LPVOID event);
 
-	void report_status(DWORD state, DWORD exit_code, DWORD wait_hint_ms,
-		DWORD check_point);
+	void report_status(DWORD state, DWORD exit_code, DWORD service_exit_code,
+		DWORD wait_hint_ms, DWORD check_point);
 	void status_ok(DWORD state);
 	void status_pending(DWORD state, DWORD wait_hint_ms = 0,
 		DWORD check_point = 0);
-	void status_error(DWORD exit_code);
+	void status_error(DWORD exit_code, DWORD service_exit_code = 0);
 
 	void log(LogLevel level, LogCategory category, LogMessage message,
 		int argc, const char *format...);
