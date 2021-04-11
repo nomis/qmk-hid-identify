@@ -23,6 +23,8 @@
 #	undef ERROR
 #endif
 
+#include <queue>
+
 #include "../common/types.h"
 #include "windows++.h"
 
@@ -60,6 +62,8 @@ private:
 	win32::wrapped_ptr<HANDLE, ::DeregisterEventSource> event_log_;
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> stop_event_;
 	SERVICE_STATUS_HANDLE status_;
+
+	std::queue<win32::native_string> devices_;
 };
 
 } // namespace hid_identify

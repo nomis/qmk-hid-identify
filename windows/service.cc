@@ -24,6 +24,7 @@
 #endif
 
 #include "events.h"
+#include "hid-enumerate.h"
 #include "hid-identify.h"
 #include "registry.h"
 #include "../common/types.h"
@@ -114,21 +115,40 @@ DWORD WindowsHIDService::run() {
 
 	status_ok(SERVICE_RUNNING);
 
+	for (auto& device : enumerate_devices()) {
+		devices_.emplace(device);
+	}
+
 	while (1) {
+		DWORD wait_ms = INFINITE;
+
+		if (!devices_.empty()) {
+			auto device = devices_.front();
+			devices_.pop();
+
+			try {
+				WindowsHIDDevice(device).identify();
+			} catch (const Exception&) {
+				// ignored
+			}
+		}
+
+		if (!devices_.empty()) {
+			wait_ms = 0;
+		}
+
 		::SetLastError(0);
-		DWORD ret = ::WaitForSingleObject(stop_event_.get(), INFINITE);
-		if (ret != WAIT_OBJECT_0) {
+		DWORD ret = ::WaitForSingleObject(stop_event_.get(), wait_ms);
+		if (ret == WAIT_OBJECT_0) {
+			return NO_ERROR;
+		} else if (ret != WAIT_TIMEOUT) {
 			auto error = ::GetLastError();
 			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
 				3, ::gettext("%s: %s, %s"), "WaitForSingleObject",
-				std::to_string(ret), win32::hex_error(error).c_str());
+				std::to_string(ret).c_str(), win32::hex_error(error).c_str());
 			return error;
-		} else {
-			break;
 		}
 	}
-
-	return NO_ERROR;
 }
 
 DWORD WindowsHIDService::control_callback(DWORD code, DWORD type,
