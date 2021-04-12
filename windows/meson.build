@@ -4,7 +4,7 @@ project('qmk-hid-identify',
 		'cpp_std=c++17',
 		'warning_level=3',
 		'werror=true',
-		'b_lto=false', # Conflicts with -municode -static
+		'b_lto=false', # Causes stack corruption with -static
 	],
 	license: 'GPL3+',
 	meson_version: '>=0.53.0',
