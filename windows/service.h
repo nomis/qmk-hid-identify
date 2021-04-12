@@ -44,9 +44,6 @@ public:
 	void main();
 
 private:
-	static DWORD control_callback(DWORD code, DWORD ev_type, LPVOID ev_data,
-		LPVOID context);
-
 	DWORD run();
 	DWORD startup();
 	DWORD queue_all_devices();

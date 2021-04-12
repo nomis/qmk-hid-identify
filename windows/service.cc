@@ -43,11 +43,11 @@ extern "C" {
 namespace hid_identify {
 
 int command_service() {
-	static WindowsHIDService service;
 	std::vector<win32::native_char> name{SVC_KEY.c_str(), SVC_KEY.c_str() + SVC_KEY.length() + 1};
 	std::array<SERVICE_TABLE_ENTRY, 2> dispatch_table{
 		{
-			{ name.data(), [] (DWORD, LPTSTR[]) {
+			{ name.data(), [] (DWORD, LPTSTR[]) __stdcall {
+					static WindowsHIDService service;
 					service.main();
 				}
 			},
@@ -85,7 +85,10 @@ WindowsHIDService::WindowsHIDService() {
 void WindowsHIDService::main() {
 	::SetLastError(0);
 	status_ = ::RegisterServiceCtrlHandlerEx(SVC_KEY.c_str(),
-		&WindowsHIDService::control_callback, this);
+		[] (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) __stdcall {
+			WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
+			return service->control(code, ev_type, ev_data);
+		}, this);
 	if (status_ == 0) {
 		auto error = ::GetLastError();
 		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
@@ -266,12 +269,6 @@ DWORD WindowsHIDService::report_one_device() {
 	} else {
 		return NO_ERROR;
 	}
-}
-
-DWORD WindowsHIDService::control_callback(DWORD code, DWORD ev_type,
-		LPVOID ev_data, LPVOID context) {
-	WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
-	return service->control(code, ev_type, ev_data);
 }
 
 DWORD WindowsHIDService::control(DWORD code, DWORD ev_type, LPVOID ev_data) {
