@@ -33,7 +33,7 @@ public:
 
 protected:
 	void log(LogLevel level, LogCategory category, LogMessage message,
-		int argc, const char *format...) override;
+		int argc, const char *format...) noexcept override;
 
 	void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) override;
 	void send_report(std::vector<uint8_t> &data) override;

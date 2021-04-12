@@ -41,7 +41,7 @@ protected:
 	HIDDevice() = default;
 
 	virtual void log(LogLevel level, LogCategory category, LogMessage message,
-		int argc, const char *format...) = 0;
+		int argc, const char *format...) noexcept = 0;
 
 	virtual void open(USBDeviceInfo &device_info, std::vector<HIDReport> &reports) = 0;
 	virtual void send_report(std::vector<uint8_t> &data) = 0;

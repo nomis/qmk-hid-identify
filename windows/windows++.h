@@ -175,14 +175,14 @@ inline bool isxdigit(native_char ch) {
 	return isdigit(ch) || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
 }
 
-std::string hex_error(DWORD error);
+std::string hex_error(DWORD error) noexcept;
 
 void log(HANDLE event_source, WORD type, WORD category, DWORD id,
-	int argc, const char *format...);
+	int argc, const char *format...) noexcept;
 
 void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
 		const native_string *prefix, int argc, const char *format,
-		std::va_list argv, bool console = true);
+		std::va_list argv, bool console = true) noexcept;
 
 native_string current_process_filename();
 bool is_elevated();

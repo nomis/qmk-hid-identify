@@ -221,7 +221,7 @@ void WindowsHIDDevice::reset() noexcept {
 }
 
 void WindowsHIDDevice::log(LogLevel level, LogCategory category,
-		LogMessage message, int argc, const char *format...) {
+		LogMessage message, int argc, const char *format...) noexcept {
 	std::va_list argv;
 	va_start(argv, format);
 	win32::vlog(event_log_.get(), static_cast<WORD>(level),

@@ -172,7 +172,7 @@ void LinuxHIDDevice::log(LogLevel level,
 		LogCategory category __attribute__((unused)),
 		LogMessage message __attribute__((unused)),
 		int argc __attribute__((unused)),
-		const char *format...) {
+		const char *format...) noexcept {
 	std::string prefix = pathname_;
 
 	if (!name_.empty()) {

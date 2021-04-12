@@ -105,7 +105,7 @@ native_string ascii_to_native_string(const std::string &text) {
 }
 #endif
 
-std::string hex_error(DWORD error) {
+std::string hex_error(DWORD error) noexcept {
 	std::vector<char> text(2 + (sizeof(DWORD) * 2) + 1);
 
 	std::snprintf(text.data(), text.size(), "0x%08lX", error);
@@ -114,7 +114,7 @@ std::string hex_error(DWORD error) {
 }
 
 void log(HANDLE event_source, WORD type, WORD category, DWORD id,
-		int argc, const char *format...) {
+		int argc, const char *format...) noexcept {
 	std::va_list argv;
 	va_start(argv, format);
 	vlog(event_source, type, category, id, nullptr, argc, format, argv);
@@ -123,7 +123,7 @@ void log(HANDLE event_source, WORD type, WORD category, DWORD id,
 
 void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
 		const native_string *prefix, int argc, const char *format,
-		std::va_list argv, bool console) {
+		std::va_list argv, bool console) noexcept {
 	std::va_list args_fallback;
 	va_copy(args_fallback, argv);
 
