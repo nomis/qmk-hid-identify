@@ -174,6 +174,18 @@ DWORD WindowsHIDService::startup() {
 
 DWORD WindowsHIDService::queue_all_devices() {
 	for (auto& device : enumerate_devices()) {
+		::SetLastError(0);
+		DWORD ret = ::WaitForSingleObject(stop_event_.get(), 0);
+		if (ret == WAIT_OBJECT_0) { // stop_event_
+			return NO_ERROR;
+		} else if (ret != WAIT_TIMEOUT) {
+			auto error = ::GetLastError();
+			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
+				3, ::gettext("%s: %s, %s"), "WaitForSingleObject",
+				std::to_string(ret).c_str(), win32::hex_error(error).c_str());
+			return error;
+		}
+
 		auto lock = win32::acquire_mutex(devices_mutex_.get());
 		if (!lock) {
 			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_MAIN_MUTEX_FAILURE,
