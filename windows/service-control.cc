@@ -61,9 +61,9 @@ static win32::sized_data<SERVICE_STATUS_PROCESS, DWORD> wait_service_status(
 
 	if (status->dwCurrentState == pending_state) {
 		if (pending_state == SERVICE_START_PENDING) {
-			win32::cout << "Waiting for service to start" << std::endl;
+			std::wcout << "Waiting for service to start" << std::endl;
 		} else if (pending_state == SERVICE_STOP_PENDING) {
-			win32::cout << "Waiting for service to stop" << std::endl;
+			std::wcout << "Waiting for service to stop" << std::endl;
 		}
 	}
 
@@ -79,9 +79,9 @@ static win32::sized_data<SERVICE_STATUS_PROCESS, DWORD> wait_service_status(
 		} else if (status->dwCurrentState != pending_state) {
 			if (::GetTickCount() - start_time_ms > wait_hint_ms) {
 				if (pending_state == SERVICE_START_PENDING) {
-					win32::cerr << "Timeout starting service" << std::endl;
+					std::wcerr << "Timeout starting service" << std::endl;
 				} else if (pending_state == SERVICE_STOP_PENDING) {
-					win32::cerr << "Timeout stopping service" << std::endl;
+					std::wcerr << "Timeout stopping service" << std::endl;
 				}
 				break;
 			}
@@ -93,7 +93,7 @@ static win32::sized_data<SERVICE_STATUS_PROCESS, DWORD> wait_service_status(
 
 void service_install() {
 	auto filename = win32::current_process_filename();
-	auto exec_command = TEXT("\"") + filename + TEXT("\" service");
+	auto exec_command = L"\"" + filename + L"\" service";
 
 	registry_add_event_log(false);
 
@@ -123,7 +123,7 @@ void service_install() {
 	if (!service) {
 		auto error = ::GetLastError();
 		if (error == ERROR_SERVICE_EXISTS) {
-			win32::cout << "Service already exists" << std::endl;
+			std::wcout << "Service already exists" << std::endl;
 
 			::SetLastError(0);
 			service = win32::wrap_generic<SC_HANDLE, ::CloseServiceHandle>(
@@ -154,11 +154,11 @@ void service_install() {
 			throw win32::Exception1{"CreateService", error};
 		}
 	} else {
-		win32::cout << "Service installed" << std::endl;
+		std::wcout << "Service installed" << std::endl;
 	}
 
 	::SetLastError(0);
-	std::vector<win32::native_char> desc{SVC_DESC.c_str(), SVC_DESC.c_str() + SVC_DESC.length() + 1};
+	std::vector<wchar_t> desc{SVC_DESC.c_str(), SVC_DESC.c_str() + SVC_DESC.length() + 1};
 	SERVICE_DESCRIPTION svc_desc{desc.data()};
 	if (!::ChangeServiceConfig2(service.get(), SERVICE_CONFIG_DESCRIPTION, &svc_desc)) {
 		throw win32::Exception1{"ChangeServiceConfig2"};
@@ -168,7 +168,7 @@ void service_install() {
 	if (!::StartService(service.get(), 0, nullptr)) {
 		auto error = ::GetLastError();
 		if (error == ERROR_SERVICE_ALREADY_RUNNING) {
-			win32::cout << "Service already running" << std::endl;
+			std::wcout << "Service already running" << std::endl;
 			return;
 		} else {
 			throw win32::Exception1{"StartService", error};
@@ -178,9 +178,9 @@ void service_install() {
 	auto status = wait_service_status(service.get(), SERVICE_START_PENDING);
 
 	if (status->dwCurrentState != SERVICE_RUNNING) {
-		win32::cerr << "Failed to start service" << std::endl;
+		std::wcerr << "Failed to start service" << std::endl;
 	} else {
-		win32::cout << "Service started" << std::endl;
+		std::wcout << "Service started" << std::endl;
 	}
 }
 
@@ -201,7 +201,7 @@ void service_uninstall() {
 	if (!service) {
 		auto error = ::GetLastError();
 		if (error == ERROR_SERVICE_DOES_NOT_EXIST) {
-			win32::cout << "Service does not exist" << std::endl;
+			std::wcout << "Service does not exist" << std::endl;
 		} else {
 			throw win32::Exception1{"OpenService"};
 		}
@@ -212,7 +212,7 @@ void service_uninstall() {
 			if (status->dwCurrentState != SERVICE_STOP_PENDING) {
 				SERVICE_STATUS control_status{};
 
-				win32::cout << "Stopping service" << std::endl;
+				std::wcout << "Stopping service" << std::endl;
 
 				::SetLastError(0);
 				if (!::ControlService(service.get(), SERVICE_CONTROL_STOP, &control_status)) {
@@ -225,10 +225,10 @@ void service_uninstall() {
 			status = wait_service_status(service.get(), SERVICE_STOP_PENDING);
 
 			if (status->dwCurrentState != SERVICE_STOPPED) {
-				win32::cerr << "Failed to stop service" << std::endl;
+				std::wcerr << "Failed to stop service" << std::endl;
 				return;
 			} else {
-				win32::cout << "Service stopped" << std::endl;
+				std::wcout << "Service stopped" << std::endl;
 			}
 		}
 
@@ -236,14 +236,14 @@ void service_uninstall() {
 		if (!::DeleteService(service.get())) {
 			auto error = ::GetLastError();
 			if (error == ERROR_SERVICE_MARKED_FOR_DELETE) {
-				win32::cerr << "Service already marked for deletion" << std::endl;
+				std::wcerr << "Service already marked for deletion" << std::endl;
 				throw OSError{};
 			} else {
 				throw win32::Exception1{"DeleteService", error};
 			}
 		}
 
-		win32::cout << "Service uninstalled" << std::endl;
+		std::wcout << "Service uninstalled" << std::endl;
 	}
 }
 

@@ -24,6 +24,7 @@
 #include <exception>
 #include <functional>
 #include <iomanip>
+#include <iostream>
 #include <map>
 #include <vector>
 
@@ -41,40 +42,40 @@ struct Command {
 public:
 	std::function<int()> function;
 	bool elevate;
-	win32::native_string description;
+	std::wstring description;
 };
 
-static std::map<win32::native_string, Command> commands;
+static std::map<std::wstring, Command> commands;
 
-static void usage(const win32::native_string &name) {
+static void usage(const std::wstring &name) {
 	bool first = true;
 	size_t max_length = 0;
 
-	win32::cout << "Usage: " << name << " <";
+	std::wcout << "Usage: " << name << " <";
 	for (const auto& command : commands) {
 		if (command.second.description.empty()) {
 			continue;
 		}
 
 		if (!first) {
-			win32::cout << "|";
+			std::wcout << "|";
 		}
 		first = false;
-		win32::cout << command.first;
+		std::wcout << command.first;
 
 		if (max_length < command.first.length()) {
 			max_length = command.first.length();
 		}
 	}
-	win32::cout << ">" << std::endl << std::endl;
+	std::wcout << ">" << std::endl << std::endl;
 
-	win32::cout << "Commands:" << std::endl;
+	std::wcout << "Commands:" << std::endl;
 	for (const auto& command : commands) {
 		if (command.second.description.empty()) {
 			continue;
 		}
 
-		win32::cout << "  " << std::left << std::setw(max_length + 2)
+		std::wcout << "  " << std::left << std::setw(max_length + 2)
 			<< command.first << std::setw(0)
 			<< command.second.description << std::endl;
 	}
@@ -109,7 +110,7 @@ static int command_report() {
 		} catch (const Exception&) {
 			exit_ret = exit_ret ? exit_ret : 1;
 		} catch (const std::exception &e) {
-			win32::cerr << e.what() << std::endl;
+			std::wcerr << e.what() << std::endl;
 			exit_ret = exit_ret ? exit_ret : 1;
 		}
 	}
@@ -117,22 +118,16 @@ static int command_report() {
 	return exit_ret;
 }
 
-int
-#ifdef UNICODE
-wmain
-#else
-main
-#endif
-(int argc, win32::native_char *argv[], win32::native_char *envp[] __attribute__((unused))) {
+int wmain(int argc, wchar_t *argv[], wchar_t *envp[] __attribute__((unused))) {
 	commands = {
-		{TEXT("install"), {command_install, true, TEXT("Install and start service")}},
-		{TEXT("uninstall"), {command_uninstall, true, TEXT("Stop and uninstall service")}},
+		{L"install", {command_install, true, L"Install and start service"}},
+		{L"uninstall", {command_uninstall, true, L"Stop and uninstall service"}},
 
-		{TEXT("register"), {command_register, true, TEXT("Add event source to registry")}},
-		{TEXT("unregister"), {command_unregister, true, TEXT("Remove event source from registry")}},
+		{L"register", {command_register, true, L"Add event source to registry"}},
+		{L"unregister", {command_unregister, true, L"Remove event source from registry"}},
 
-		{TEXT("report"), {command_report, false, TEXT("Send HID report to all devices")}},
-		{TEXT("service"), {command_service, false, TEXT("")}},
+		{L"report", {command_report, false, L"Send HID report to all devices"}},
+		{L"service", {command_service, false, L""}},
 	};
 
 	if (argc != 2) {
@@ -158,7 +153,7 @@ main
 	} catch (const Exception&) {
 		return 1;
 	} catch (const std::exception &e) {
-		win32::cerr << e.what() << std::endl;
+		std::wcerr << e.what() << std::endl;
 		return 2;
 	} catch (...) {
 		throw;

@@ -50,12 +50,14 @@ endif
 add_project_arguments('-DNTDDI_VERSION=0x0A000000', language: 'cpp')
 add_project_arguments('-D_WIN32_WINNT=0x0A00', language: 'cpp')
 
+add_project_arguments('-DUNICODE', language: 'cpp')
 add_project_arguments('-DNOGDI', language: 'cpp')
 # Workaround old headers that haven't been updated to handle NOGDI properly
 add_project_arguments('-DLPLOGFONTA=LPVOID', language: 'cpp')
 add_project_arguments('-DLPLOGFONTW=LPVOID', language: 'cpp')
 add_project_arguments('-DLPDEVMODE=LPVOID', language: 'cpp')
 
+add_project_link_arguments('-municode', language: 'cpp')
 add_project_link_arguments('-static', language: 'cpp')
 
 cpp_libs = [
@@ -64,14 +66,8 @@ cpp_libs = [
 	cpp.find_library('ktmw32'),
 ]
 
-executable('qmk-hid-identifyA',
-	source_files,
-	dependencies: cpp_libs)
-
 executable('qmk-hid-identify',
 	source_files,
-	cpp_args: ['-DUNICODE'],
-	link_args: ['-municode'],
 	dependencies: cpp_libs,
 	install: true)
 

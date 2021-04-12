@@ -25,6 +25,7 @@
 
 #include <cstdio>
 #include <cstdarg>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -90,58 +91,6 @@ wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms
 	}
 }
 
-#ifdef UNICODE
-std::string to_string(const native_char *text, ssize_t wlen) {
-	int len = ::WideCharToMultiByte(CP_UTF8, 0, text, wlen, nullptr, 0, nullptr, nullptr);
-	if (len > 0) {
-		auto buf = std::vector<char>(len);
-
-		len = ::WideCharToMultiByte(CP_UTF8, 0, text, wlen, buf.data(), buf.size(), nullptr, nullptr);
-
-		if (wlen != -1) {
-			return std::string{buf.data(), (size_t)len};
-		} else {
-			return std::string{buf.data()};
-		}
-	} else {
-		return "";
-	}
-}
-
-native_string ascii_to_native_string(const std::string &text) {
-	return native_string{text.begin(), text.end()};
-}
-#else
-std::string to_string(const native_char *text, ssize_t len) {
-	if (len < 0) {
-		return std::string{text};
-	} else {
-		return std::string{text, (size_t)len};
-	}
-}
-
-std::string unicode_to_ansi_string(const wchar_t *text, ssize_t wlen) {
-	int len = ::WideCharToMultiByte(CP_ACP, 0, text, wlen, nullptr, 0, nullptr, nullptr);
-	if (len > 0) {
-		auto buf = std::vector<char>(len);
-
-		len = ::WideCharToMultiByte(CP_ACP, 0, text, wlen, buf.data(), buf.size(), nullptr, nullptr);
-
-		if (wlen != -1) {
-			return std::string{buf.data(), (size_t)len};
-		} else {
-			return std::string{buf.data()};
-		}
-	} else {
-		return "";
-	}
-}
-
-native_string ascii_to_native_string(const std::string &text) {
-	return text;
-}
-#endif
-
 std::string hex_error(DWORD error) noexcept {
 	std::vector<char> text(2 + (sizeof(DWORD) * 2) + 1);
 
@@ -159,14 +108,14 @@ void log(HANDLE event_source, WORD type, WORD category, DWORD id,
 }
 
 void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
-		const native_string *prefix, int argc, const char *format,
+		const std::wstring *prefix, int argc, const char *format,
 		std::va_list argv, bool console) noexcept {
 	std::va_list args_fallback;
 	va_copy(args_fallback, argv);
 
 	int prefix_count = (prefix != nullptr) ? 1 : 0;
-	std::vector<std::vector<win32::native_char>> ev_strings;
-	std::vector<const win32::native_char*> ev_string_ptrs(prefix_count + argc);
+	std::vector<std::vector<wchar_t>> ev_strings;
+	std::vector<const wchar_t*> ev_string_ptrs(prefix_count + argc);
 
 	ev_strings.reserve(prefix_count + argc);
 	if (prefix != nullptr) {
@@ -175,7 +124,7 @@ void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
 	}
 
 	for (int i = 0; i < argc; i++) {
-		auto value = win32::ascii_to_native_string(va_arg(argv, char*));
+		auto value = std::string{va_arg(argv, char*)};
 
 		ev_strings.emplace_back(value.c_str(), value.c_str() + value.length() + 1);
 		ev_string_ptrs[prefix_count + i] = ev_strings.back().data();
@@ -187,7 +136,7 @@ void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
 	}
 
 	if (console) {
-		auto &out = (type == EVENTLOG_INFORMATION_TYPE) ? cout : cerr;
+		auto &out = (type == EVENTLOG_INFORMATION_TYPE) ? std::wcout : std::wcerr;
 
 		::SetLastError(0);
 		auto formatted_text = win32::wrap_output<LPTSTR, ::LocalFree>(
@@ -218,8 +167,8 @@ void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
 	::va_end(args_fallback);
 }
 
-native_string current_process_filename() {
-	std::vector<native_char> filename(max_path + 1);
+std::wstring current_process_filename() {
+	std::vector<wchar_t> filename(max_path + 1);
 
 	::SetLastError(0);
 	DWORD ret = ::GetModuleFileName(nullptr, filename.data(), filename.size());
@@ -255,9 +204,9 @@ bool is_elevated() {
 	return admin;
 }
 
-int run_elevated(const std::vector<native_string> &parameters) {
+int run_elevated(const std::vector<std::wstring> &parameters) {
 	auto filename = current_process_filename();
-	native_string cmdline;
+	std::wstring cmdline;
 	bool first = true;
 
 	cmdline.reserve(max_path);
@@ -281,7 +230,7 @@ int run_elevated(const std::vector<native_string> &parameters) {
 	exec_info.cbSize = sizeof(exec_info);
 	exec_info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
 	exec_info.hwnd = nullptr;
-	exec_info.lpVerb = TEXT("runas");
+	exec_info.lpVerb = L"runas";
 	exec_info.lpFile = filename.c_str();
 	exec_info.lpParameters = cmdline.c_str();
 	exec_info.lpDirectory = nullptr;

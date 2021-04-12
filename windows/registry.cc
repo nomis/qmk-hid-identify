@@ -24,31 +24,34 @@
 #	undef ERROR
 #endif
 
+#include <iostream>
+#include <string>
+
 #include "hid-identify.h"
 #include "windows++.h"
 
 namespace hid_identify {
 
-static const win32::native_string LOG_REG_HLKM_KEY = TEXT("SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\") + LOG_PROVIDER;
-static const win32::native_string LOG_REG_VALUE_CATFILE_NAME = TEXT("CategoryMessageFile");
-static const win32::native_string LOG_REG_VALUE_CATCOUNT_NAME = TEXT("CategoryCount");
+static const std::wstring LOG_REG_HLKM_KEY = L"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\" + LOG_PROVIDER;
+static const std::wstring LOG_REG_VALUE_CATFILE_NAME = L"CategoryMessageFile";
+static const std::wstring LOG_REG_VALUE_CATCOUNT_NAME = L"CategoryCount";
 static const DWORD LOG_REG_VALUE_CATCOUNT_DATA = LOGGING_CATEGORY_MAX;
-static const win32::native_string LOG_REG_VALUE_MSGFILE_NAME = TEXT("EventMessageFile");
-static const win32::native_string LOG_REG_VALUE_TYPES_NAME = TEXT("TypesSupported");
+static const std::wstring LOG_REG_VALUE_MSGFILE_NAME = L"EventMessageFile";
+static const std::wstring LOG_REG_VALUE_TYPES_NAME = L"TypesSupported";
 static const DWORD LOG_REG_VALUE_TYPES_DATA = EVENTLOG_INFORMATION_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_ERROR_TYPE;
 
-static void registry_set_value(HKEY key, const win32::native_string &name,
+static void registry_set_value(HKEY key, const std::wstring &name,
 		DWORD type, const BYTE *data, DWORD len, bool verbose) {
 	DWORD ret = ::RegSetValueEx(key, name.c_str(), 0, type, data, len);
 
 	if (ret != ERROR_SUCCESS) {
 		auto error = ::GetLastError();
-		win32::cout << "Unable to set value of " << name << std::endl;
+		std::wcout << "Unable to set value of " << name << std::endl;
 		throw win32::Exception1{"RegSetValueEx", error};
 	}
 
 	if (verbose) {
-		win32::cout << "Set value of " << name << std::endl;
+		std::wcout << "Set value of " << name << std::endl;
 	}
 }
 
@@ -70,13 +73,13 @@ void registry_add_event_log(bool verbose) {
 			switch (disposition) {
 			case REG_CREATED_NEW_KEY:
 				if (verbose) {
-					win32::cout << "Created new key: " << LOG_REG_HLKM_KEY << std::endl;
+					std::wcout << "Created new key: " << LOG_REG_HLKM_KEY << std::endl;
 				}
 				break;
 
 			case REG_OPENED_EXISTING_KEY:
 				if (verbose) {
-					win32::cout << "Key already exists: " << LOG_REG_HLKM_KEY << std::endl;
+					std::wcout << "Key already exists: " << LOG_REG_HLKM_KEY << std::endl;
 				}
 				break;
 			}
@@ -88,7 +91,7 @@ void registry_add_event_log(bool verbose) {
 
 	registry_set_value(log_key.get(), LOG_REG_VALUE_CATFILE_NAME,
 		REG_SZ, reinterpret_cast<const BYTE*>(filename.c_str()),
-		(filename.length() + 1) * sizeof(win32::native_char), verbose);
+		(filename.length() + 1) * sizeof(wchar_t), verbose);
 
 	registry_set_value(log_key.get(), LOG_REG_VALUE_CATCOUNT_NAME,
 		REG_DWORD, reinterpret_cast<const BYTE*>(&LOG_REG_VALUE_CATCOUNT_DATA),
@@ -96,7 +99,7 @@ void registry_add_event_log(bool verbose) {
 
 	registry_set_value(log_key.get(), LOG_REG_VALUE_MSGFILE_NAME,
 		REG_SZ, reinterpret_cast<const BYTE*>(filename.c_str()),
-		(filename.length() + 1) * sizeof(win32::native_char), verbose);
+		(filename.length() + 1) * sizeof(wchar_t), verbose);
 
 	registry_set_value(log_key.get(), LOG_REG_VALUE_TYPES_NAME,
 		REG_DWORD, reinterpret_cast<const BYTE*>(&LOG_REG_VALUE_TYPES_DATA),
@@ -107,7 +110,7 @@ void registry_add_event_log(bool verbose) {
 		throw win32::Exception1{"CommitTransaction"};
 	}
 	if (verbose) {
-		win32::cout << "Committed changes" << std::endl;
+		std::wcout << "Committed changes" << std::endl;
 	}
 }
 
@@ -119,11 +122,11 @@ void registry_remove_event_log(bool verbose) {
 		0, 0, txn.get(), nullptr);
 	if (ret == ERROR_SUCCESS) {
 		if (verbose) {
-			win32::cout << "Deleted key: " << LOG_REG_HLKM_KEY << std::endl;
+			std::wcout << "Deleted key: " << LOG_REG_HLKM_KEY << std::endl;
 		}
 	} else if (ret == ERROR_FILE_NOT_FOUND) {
 		if (verbose) {
-			win32::cout << "Key not found: " << LOG_REG_HLKM_KEY << std::endl;
+			std::wcout << "Key not found: " << LOG_REG_HLKM_KEY << std::endl;
 		}
 	} else {
 		throw win32::Exception1{"RegDeleteKeyTransacted"};
@@ -135,7 +138,7 @@ void registry_remove_event_log(bool verbose) {
 	}
 
 	if (verbose) {
-		win32::cout << "Committed changes" << std::endl;
+		std::wcout << "Committed changes" << std::endl;
 	}
 }
 

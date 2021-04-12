@@ -26,7 +26,6 @@
 #include <cstdarg>
 #include <exception>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -179,37 +178,13 @@ sized_data<T, Size> make_sized(sized_func_t<T, Size> sized_func) {
 
 wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms = INFINITE);
 
-#ifdef UNICODE
-using native_string = std::wstring;
-static constexpr std::wistream &cin = std::wcin;
-static constexpr std::wostream &cout = std::wcout;
-static constexpr std::wostream &cerr = std::wcerr;
-static constexpr std::wostream &clog = std::wclog;
-
-std::string to_string(const wchar_t *text, ssize_t wlen = -1);
-#else
-using native_string = std::string;
-static constexpr std::istream &cin = std::cin;
-static constexpr std::ostream &cout = std::cout;
-static constexpr std::ostream &cerr = std::cerr;
-static constexpr std::ostream &clog = std::clog;
-
-std::string to_string(const char *text, ssize_t len = -1);
-
-std::string unicode_to_ansi_string(const wchar_t *text, ssize_t wlen = -1);
-#endif
-
-using native_char = typename native_string::value_type;
-
-native_string ascii_to_native_string(const std::string &text);
-
 /* https://stackoverflow.com/q/2898228/388191 */
-inline bool isdigit(native_char ch) {
+inline bool isdigit(wchar_t ch) {
 	return (ch >= '0' && ch <= '9');
 }
 
 /* https://stackoverflow.com/q/2898228/388191 */
-inline bool isxdigit(native_char ch) {
+inline bool isxdigit(wchar_t ch) {
 	return isdigit(ch) || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
 }
 
@@ -219,11 +194,11 @@ void log(HANDLE event_source, WORD type, WORD category, DWORD id,
 	int argc, const char *format...) noexcept;
 
 void vlog(HANDLE event_source, WORD type, WORD category, DWORD id,
-		const native_string *prefix, int argc, const char *format,
+		const std::wstring *prefix, int argc, const char *format,
 		std::va_list argv, bool console = true) noexcept;
 
-native_string current_process_filename();
+std::wstring current_process_filename();
 bool is_elevated();
-int run_elevated(const std::vector<native_string> &parameters);
+int run_elevated(const std::vector<std::wstring> &parameters);
 
 } /* namespace win32 */

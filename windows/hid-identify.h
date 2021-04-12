@@ -38,11 +38,11 @@ extern "C" {
 
 namespace hid_identify {
 
-static const win32::native_string LOG_PROVIDER = TEXT("uk.uuid-QMK HID Identify");
+static const std::wstring LOG_PROVIDER = L"uk.uuid-QMK HID Identify";
 
 class WindowsHIDDevice: public HIDDevice {
 public:
-	explicit WindowsHIDDevice(const win32::native_string &filename);
+	explicit WindowsHIDDevice(const std::wstring &filename);
 
 protected:
 	void log(LogLevel level, LogCategory category, LogMessage message,
@@ -60,7 +60,7 @@ private:
 		PHIDP_PREPARSED_DATA preparsed_data);
 	void init_reports(std::vector<HIDReport> &reports);
 
-	const win32::native_string filename_;
+	const std::wstring filename_;
 	win32::wrapped_ptr<HANDLE, ::DeregisterEventSource> event_log_;
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> handle_;
 	uint32_t report_length_ = 0;

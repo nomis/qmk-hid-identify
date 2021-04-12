@@ -23,6 +23,6 @@
 
 namespace hid_identify {
 
-std::vector<win32::native_string> enumerate_devices();
+std::vector<std::wstring> enumerate_devices();
 
 } // namespace hid_identify

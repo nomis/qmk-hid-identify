@@ -31,9 +31,9 @@
 
 namespace hid_identify {
 
-static const win32::native_string SVC_KEY = TEXT("qmk-hid-identify");
-static const win32::native_string SVC_NAME = TEXT("QMK HID Identify");
-static const win32::native_string SVC_DESC = TEXT("Identify the current OS to connected QMK HID devices");
+static const std::wstring SVC_KEY = L"qmk-hid-identify";
+static const std::wstring SVC_NAME = L"QMK HID Identify";
+static const std::wstring SVC_DESC = L"Identify the current OS to connected QMK HID devices";
 
 int command_service();
 
@@ -72,7 +72,7 @@ private:
 	SERVICE_STATUS_HANDLE status_;
 
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> devices_mutex_;
-	std::deque<win32::native_string> devices_;
+	std::deque<std::wstring> devices_;
 };
 
 } // namespace hid_identify

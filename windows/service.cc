@@ -43,7 +43,7 @@ extern "C" {
 namespace hid_identify {
 
 int command_service() {
-	std::vector<win32::native_char> name{SVC_KEY.c_str(), SVC_KEY.c_str() + SVC_KEY.length() + 1};
+	std::vector<wchar_t> name{SVC_KEY.c_str(), SVC_KEY.c_str() + SVC_KEY.length() + 1};
 	std::array<SERVICE_TABLE_ENTRY, 2> dispatch_table{
 		{
 			{ name.data(), [] (DWORD, LPTSTR[]) __stdcall {
@@ -307,19 +307,7 @@ void WindowsHIDService::device_arrival(DEV_BROADCAST_DEVICEINTERFACE *dev) {
 		control(SERVICE_CONTROL_STOP, 0, 0);
 		return;
 	}
-#ifdef UNICODE
 	devices_.emplace_back(dev->dbcc_name);
-#else
-	/*
-	 * "When this structure is returned to a window through the WM_DEVICECHANGE
-	 * message, the dbcc_name string is converted to ANSI as appropriate.
-	 * Services always receive a Unicode string, whether they call
-	 * RegisterDeviceNotificationW or RegisterDeviceNotificationA."
-	 *
-	 * https://docs.microsoft.com/en-us/windows/win32/api/dbt/ns-dbt-dev_broadcast_deviceinterface_a
-	 */
-	devices_.emplace_back(win32::unicode_to_ansi_string(reinterpret_cast<wchar_t*>(dev->dbcc_name)));
-#endif
 	::SetEvent(device_event_.get());
 }
 

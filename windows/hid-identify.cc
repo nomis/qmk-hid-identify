@@ -48,7 +48,7 @@ std::vector<uint8_t> os_identity() {
 	return {'W', 'I', 'N', '\0'};
 }
 
-WindowsHIDDevice::WindowsHIDDevice(const win32::native_string &filename)
+WindowsHIDDevice::WindowsHIDDevice(const std::wstring &filename)
 		: filename_(filename) {
 	::SetLastError(0);
 	event_log_ = win32::wrap_generic<HANDLE, ::DeregisterEventSource>(
@@ -86,13 +86,13 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 }
 
 int16_t WindowsHIDDevice::interface_number() {
-	static const win32::native_string tag_uc = TEXT("&MI_");
-	static const win32::native_string tag_lc = TEXT("&mi_");
+	static const std::wstring tag_uc = L"&MI_";
+	static const std::wstring tag_lc = L"&mi_";
 
 	auto pos = filename_.find(tag_uc);
-	if (pos == win32::native_string::npos) {
+	if (pos == std::wstring::npos) {
 		pos = filename_.find(tag_lc);
-		if (pos == win32::native_string::npos) {
+		if (pos == std::wstring::npos) {
 			return -1;
 		}
 	}
@@ -108,7 +108,7 @@ int16_t WindowsHIDDevice::interface_number() {
 		return -1;
 	}
 
-	return std::stoi(win32::native_string{{hi, lo}}, nullptr, 16);
+	return std::stoi(std::wstring{{hi, lo}}, nullptr, 16);
 }
 
 void WindowsHIDDevice::init_device_info(USBDeviceInfo &device_info) {

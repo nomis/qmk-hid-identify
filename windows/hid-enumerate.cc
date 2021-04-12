@@ -35,8 +35,8 @@ extern "C" {
 
 namespace hid_identify {
 
-std::vector<win32::native_string> enumerate_devices() {
-	std::vector<win32::native_string> devices;
+std::vector<std::wstring> enumerate_devices() {
+	std::vector<std::wstring> devices;
 	GUID guid{};
 	::HidD_GetHidGuid(&guid);
 
