@@ -71,10 +71,13 @@ executable('qmk-hid-identify',
 	dependencies: cpp_libs,
 	install: true)
 
-run_target('cppcheck',
-	command: [
-		'cppcheck',
-		'--project=' + join_paths(meson.current_build_dir(), 'compile_commands.json'),
-		'--enable=all',
-		'--inline-suppr',
-	] + source_files)
+cppcheck = find_program('cppcheck', required: false)
+if cppcheck.found()
+	run_target('cppcheck',
+		command: [
+			cppcheck,
+			'--project=' + join_paths(meson.current_build_dir(), 'compile_commands.json'),
+			'--enable=all',
+			'--inline-suppr',
+		] + source_files)
+endif
