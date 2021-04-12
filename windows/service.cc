@@ -85,10 +85,12 @@ WindowsHIDService::WindowsHIDService() {
 void WindowsHIDService::main() {
 	::SetLastError(0);
 	status_ = ::RegisterServiceCtrlHandlerEx(SVC_KEY.c_str(),
-		[] (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) noexcept __stdcall -> DWORD {
+		[] (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) __stdcall -> DWORD {
 			WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
 			try {
 				return service->control(code, ev_type, ev_data);
+			} catch (const Exception &e) {
+				return service->control(SERVICE_CONTROL_STOP, 0, 0);
 			} catch (const win32::Exception1 &e) {
 				service->log(e);
 				return service->control(SERVICE_CONTROL_STOP, 0, 0);
