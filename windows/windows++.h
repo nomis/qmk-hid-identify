@@ -24,6 +24,7 @@
 #endif
 
 #include <cstdarg>
+#include <exception>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -35,6 +36,43 @@
 namespace win32 {
 
 constexpr DWORD max_path = 32767;
+
+class Exception: public std::exception {
+public:
+	const std::string& function_name() const noexcept;
+	DWORD error() const noexcept;
+
+protected:
+	Exception(const std::string &function_name, DWORD error) noexcept;
+
+private:
+	std::string function_name_;
+	DWORD error_;
+};
+
+class Exception1: public Exception {
+public:
+	Exception1(const std::string &function_name,
+		DWORD error = ::GetLastError()) noexcept;
+
+	virtual const char *what() const noexcept;
+
+private:
+	std::string what_;
+};
+
+class Exception2: public Exception {
+public:
+	Exception2(const std::string &function_name, DWORD return_code,
+		DWORD error = ::GetLastError()) noexcept;
+
+	virtual const char *what() const noexcept;
+	DWORD return_code() const noexcept;
+
+private:
+	std::string what_;
+	DWORD return_code_;
+};
 
 template <class T>
 using remove_pointer_t = typename std::remove_pointer<T>::type;

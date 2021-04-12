@@ -85,9 +85,17 @@ WindowsHIDService::WindowsHIDService() {
 void WindowsHIDService::main() {
 	::SetLastError(0);
 	status_ = ::RegisterServiceCtrlHandlerEx(SVC_KEY.c_str(),
-		[] (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) __stdcall {
+		[] (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) noexcept __stdcall -> DWORD {
 			WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
-			return service->control(code, ev_type, ev_data);
+			try {
+				return service->control(code, ev_type, ev_data);
+			} catch (const win32::Exception1 &e) {
+				service->log(e);
+				return service->control(SERVICE_CONTROL_STOP, 0, 0);
+			} catch (const win32::Exception2 &e) {
+				service->log(e);
+				return service->control(SERVICE_CONTROL_STOP, 0, 0);
+			}
 		}, this);
 	if (status_ == 0) {
 		auto error = ::GetLastError();
@@ -97,12 +105,23 @@ void WindowsHIDService::main() {
 	}
 
 	try {
-		DWORD exit_code = run();
-		if (exit_code == NO_ERROR) {
-			status_ok(SERVICE_STOPPED);
-		} else {
-			status_error(exit_code);
+		try {
+			DWORD exit_code = run();
+			if (exit_code == NO_ERROR) {
+				status_ok(SERVICE_STOPPED);
+			} else {
+				status_error(exit_code);
+			}
+		} catch (const win32::Exception1 &e) {
+			log(e);
+			throw;
+		} catch (const win32::Exception2 &e) {
+			log(e);
+			throw;
 		}
+	} catch (const win32::Exception &e) {
+		status_error(e.error());
+		throw;
 	} catch (...) {
 		status_error(ERROR_SERVICE_SPECIFIC_ERROR, 1);
 		throw;
@@ -133,28 +152,19 @@ DWORD WindowsHIDService::startup() {
 	::SetLastError(0);
 	stop_event_ = win32::wrap_generic_handle(::CreateEvent(nullptr, true, false, nullptr));
 	if (!stop_event_) {
-		auto error = ::GetLastError();
-		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
-			2, ::gettext("%s: %s"), "CreateEvent", win32::hex_error(error).c_str());
-		return error;
+		throw win32::Exception1{"CreateEvent"};
 	}
 
 	::SetLastError(0);
 	device_event_ = win32::wrap_generic_handle(::CreateEvent(nullptr, false, false, nullptr));
 	if (!device_event_) {
-		auto error = ::GetLastError();
-		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
-			2, ::gettext("%s: %s"), "CreateEvent", win32::hex_error(error).c_str());
-		return error;
+		throw win32::Exception1{"CreateEvent"};
 	}
 
 	::SetLastError(0);
 	devices_mutex_ = win32::wrap_generic_handle(::CreateMutex(nullptr, false, nullptr));
 	if (!device_event_) {
-		auto error = ::GetLastError();
-		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
-			2, ::gettext("%s: %s"), "CreateMutex", win32::hex_error(error).c_str());
-		return error;
+		throw win32::Exception1{"CreateMutex"};
 	}
 
 	DEV_BROADCAST_DEVICEINTERFACE filter{};
@@ -166,10 +176,7 @@ DWORD WindowsHIDService::startup() {
 	device_notification_ = win32::wrap_generic<HDEVNOTIFY, ::UnregisterDeviceNotification>(
 		::RegisterDeviceNotification(status_, &filter, DEVICE_NOTIFY_SERVICE_HANDLE));
 	if (!device_notification_) {
-		auto error = ::GetLastError();
-		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
-			2, ::gettext("%s: %s"), "RegisterDeviceNotification", win32::hex_error(error).c_str());
-		return error;
+		throw win32::Exception1{"RegisterDeviceNotification"};
 	}
 
 	return NO_ERROR;
@@ -179,14 +186,10 @@ DWORD WindowsHIDService::queue_all_devices() {
 	for (auto& device : enumerate_devices()) {
 		::SetLastError(0);
 		DWORD ret = ::WaitForSingleObject(stop_event_.get(), 0);
-		if (ret == WAIT_OBJECT_0) { // stop_event_
+		if (ret == WAIT_OBJECT_0) {
 			return NO_ERROR;
 		} else if (ret != WAIT_TIMEOUT) {
-			auto error = ::GetLastError();
-			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
-				3, ::gettext("%s: %s, %s"), "WaitForSingleObject",
-				std::to_string(ret).c_str(), win32::hex_error(error).c_str());
-			return error;
+			throw win32::Exception2{"WaitForSingleObject(stop_event)", ret};
 		}
 
 		auto lock = win32::acquire_mutex(devices_mutex_.get());
@@ -230,11 +233,7 @@ DWORD WindowsHIDService::process_events() {
 		} else if (ret == WAIT_OBJECT_0 + 1) { // device_event_
 			// continue
 		} else if (ret != WAIT_TIMEOUT) {
-			auto error = ::GetLastError();
-			log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
-				3, ::gettext("%s: %s, %s"), "WaitForMultipleObjects",
-				std::to_string(ret).c_str(), win32::hex_error(error).c_str());
-			return error;
+			throw win32::Exception2{"WaitForMultipleObjects({stop_event,device_event})", ret};
 		}
 	}
 }
@@ -305,8 +304,7 @@ void WindowsHIDService::device_arrival(DEV_BROADCAST_DEVICEINTERFACE *dev) {
 	if (!lock) {
 		log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_CTRL_MUTEX_FAILURE,
 			0, ::gettext("Service control handler failed to acquire device queue mutex"));
-		status_pending(SERVICE_STOP_PENDING, 5000, 1);
-		::SetEvent(stop_event_.get());
+		control(SERVICE_CONTROL_STOP, 0, 0);
 		return;
 	}
 #ifdef UNICODE
@@ -372,13 +370,26 @@ void WindowsHIDService::status_error(DWORD exit_code, DWORD service_exit_code) {
 }
 
 void WindowsHIDService::log(LogLevel level, LogCategory category,
-		LogMessage message, int argc, const char *format...) {
+		LogMessage message, int argc, const char *format...) noexcept {
 	std::va_list argv;
 	va_start(argv, format);
 	win32::vlog(event_log_.get(), static_cast<WORD>(level),
 		static_cast<WORD>(category), static_cast<DWORD>(message),
 		nullptr, argc, format, argv, false);
 	va_end(argv);
+}
+
+void WindowsHIDService::log(const win32::Exception1 &e) noexcept {
+	log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_1,
+		2, ::gettext("%s: %s"), e.function_name().c_str(),
+		win32::hex_error(e.error()).c_str());
+}
+
+void WindowsHIDService::log(const win32::Exception2 &e) noexcept {
+	log(LogLevel::ERROR, LogCategory::OS_ERROR, LogMessage::SVC_OS_FUNC_ERROR_CODE_2,
+		3, ::gettext("%s: %s, %s"), e.function_name().c_str(),
+		win32::hex_error(e.return_code()).c_str(),
+		win32::hex_error(e.error()).c_str());
 }
 
 } // namespace hid_identify

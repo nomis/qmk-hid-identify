@@ -25,11 +25,46 @@
 
 #include <cstdio>
 #include <cstdarg>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace win32 {
+
+Exception::Exception(const std::string &function_name, DWORD error) noexcept
+		: function_name_(function_name), error_(error) {
+}
+
+const std::string& Exception::function_name() const noexcept {
+	return function_name_;
+}
+
+DWORD Exception::error() const noexcept {
+	return error_;
+}
+
+Exception1::Exception1(const std::string &function_name, DWORD error) noexcept
+		: Exception(function_name, error),
+		what_(function_name + ": " + hex_error(error)) {
+}
+
+const char *Exception1::what() const noexcept {
+	return what_.c_str();
+}
+
+Exception2::Exception2(const std::string &function_name, DWORD return_code,
+			DWORD error) noexcept
+		: Exception(function_name, error), what_(function_name + ": "
+			+ std::to_string(return_code_) + ", " + hex_error(error)),
+		return_code_(return_code) {
+}
+
+const char *Exception2::what() const noexcept {
+	return what_.c_str();
+}
+
+DWORD Exception2::return_code() const noexcept {
+	return return_code_;
+}
 
 wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle) {
 	return wrap_generic<HANDLE, ::CloseHandle>(handle);
@@ -44,11 +79,13 @@ wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle) {
 }
 
 wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms) {
-	switch (::WaitForSingleObject(mutex, timeout_ms)) {
-	case WAIT_OBJECT_0:
+	::SetLastError(0);
+	DWORD ret = ::WaitForSingleObject(mutex, timeout_ms);
+	if (ret == WAIT_OBJECT_0) {
 		return wrap_generic<HANDLE, ::ReleaseMutex>(mutex);
-
-	default:
+	} else if (ret != WAIT_TIMEOUT) {
+		throw win32::Exception2{"WaitForSingleObject(acquire_mutex)", ret};
+	} else {
 		return {};
 	}
 }
@@ -187,8 +224,7 @@ native_string current_process_filename() {
 	::SetLastError(0);
 	DWORD ret = ::GetModuleFileName(nullptr, filename.data(), filename.size());
 	if (ret == 0 || ret == ERROR_INSUFFICIENT_BUFFER) {
-		auto error = ::GetLastError();
-		throw std::runtime_error{"GetModuleFileName returned " + win32::hex_error(error)};
+		throw Exception1{"GetModuleFileName"};
 	}
 
 	return {filename.data()};
@@ -205,8 +241,7 @@ bool is_elevated() {
 				0, 0, 0, 0, 0, 0, &data);
 		});
 	if (!admins) {
-		auto error = ::GetLastError();
-		throw std::runtime_error{"AllocateAndInitializeSid returned " + win32::hex_error(error)};
+		throw Exception1{"AllocateAndInitializeSid"};
 	}
 
 	// Determine whether the SID of administrators group is enabled in
@@ -214,8 +249,7 @@ bool is_elevated() {
 	BOOL admin = false;
 	::SetLastError(0);
 	if (!::CheckTokenMembership(nullptr, admins.get(), &admin)) {
-		auto error = ::GetLastError();
-		throw std::runtime_error{"CheckTokenMembership returned " + win32::hex_error(error)};
+		throw Exception1{"CheckTokenMembership"};
 	}
 
 	return admin;
@@ -257,8 +291,7 @@ int run_elevated(const std::vector<native_string> &parameters) {
 
 	::SetLastError(0);
 	if (!::ShellExecuteEx(&exec_info)) {
-		auto error = ::GetLastError();
-		throw std::runtime_error{"ShellExecuteEx returned " + win32::hex_error(error)};
+		throw Exception1{"ShellExecuteEx"};
 	}
 
 	auto process = wrap_generic_handle(exec_info.hProcess);
@@ -266,16 +299,13 @@ int run_elevated(const std::vector<native_string> &parameters) {
 		::SetLastError(0);
 		DWORD ret = ::WaitForSingleObject(process.get(), INFINITE);
 		if (ret != WAIT_OBJECT_0) {
-			auto error = ::GetLastError();
-			throw std::runtime_error{"WaitForSingleObject returned "
-				+ std::to_string(ret) + ", " + win32::hex_error(error)};
+			throw Exception2{"WaitForSingleObject(run_elevated)", ret};
 		}
 
 		DWORD exit_code = 0;
 		::SetLastError(0);
 		if (!::GetExitCodeProcess(process.get(), &exit_code)) {
-			auto error = ::GetLastError();
-			throw std::runtime_error{"GetExitCodeProcess returned " + win32::hex_error(error)};
+			throw Exception1{"GetExitCodeProcess"};
 		}
 
 		return exit_code;

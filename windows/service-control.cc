@@ -26,7 +26,6 @@
 #include "events.h"
 #include "registry.h"
 #include "service.h"
-#include "../common/types.h"
 #include "windows++.h"
 
 #include <array>
@@ -48,10 +47,7 @@ static win32::sized_data<SERVICE_STATUS_PROCESS, DWORD> query_service_status(
 				reinterpret_cast<LPBYTE>(data), size, required_size);
 		});
 	if (!status) {
-		auto error = ::GetLastError();
-		win32::cerr << "QueryServiceStatusEx returned "
-			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"QueryServiceStatusEx"};
 	}
 	return status;
 }
@@ -105,10 +101,7 @@ void service_install() {
 	auto manager = win32::wrap_generic<SC_HANDLE, ::CloseServiceHandle>(
 		::OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS));
 	if (!manager) {
-		auto error = ::GetLastError();
-		win32::cerr << "OpenSCManager returned "
-			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"OpenSCManager"};
 	}
 
 	::SetLastError(0);
@@ -139,10 +132,7 @@ void service_install() {
 					SVC_KEY.c_str(),
 					SERVICE_ALL_ACCESS));
 			if (!service) {
-				error = ::GetLastError();
-				win32::cerr << "OpenService returned "
-					<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-				throw OSError{};
+				throw win32::Exception1{"OpenService"};
 			}
 
 			::SetLastError(0);
@@ -158,16 +148,10 @@ void service_install() {
 					nullptr,
 					nullptr,
 					SVC_NAME.c_str())) {
-				error = ::GetLastError();
-				win32::cerr << "ChangeServiceConfig returned "
-					<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-				throw OSError{};
+				throw win32::Exception1{"ChangeServiceConfig"};
 			}
-
 		} else {
-			win32::cerr << "CreateService returned "
-				<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-			throw OSError{};
+			throw win32::Exception1{"CreateService", error};
 		}
 	} else {
 		win32::cout << "Service installed" << std::endl;
@@ -177,10 +161,7 @@ void service_install() {
 	std::vector<win32::native_char> desc{SVC_DESC.c_str(), SVC_DESC.c_str() + SVC_DESC.length() + 1};
 	SERVICE_DESCRIPTION svc_desc{desc.data()};
 	if (!::ChangeServiceConfig2(service.get(), SERVICE_CONFIG_DESCRIPTION, &svc_desc)) {
-		auto error = ::GetLastError();
-		win32::cerr << "ChangeServiceConfig2 returned "
-			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"ChangeServiceConfig2"};
 	}
 
 	::SetLastError(0);
@@ -190,9 +171,7 @@ void service_install() {
 			win32::cout << "Service already running" << std::endl;
 			return;
 		} else {
-			win32::cerr << "StartService returned "
-				<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-			throw OSError{};
+			throw win32::Exception1{"StartService", error};
 		}
 	}
 
@@ -210,10 +189,7 @@ void service_uninstall() {
 	auto manager = win32::wrap_generic<SC_HANDLE, ::CloseServiceHandle>(
 		::OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS));
 	if (!manager) {
-		auto error = ::GetLastError();
-		win32::cerr << "OpenSCManager returned "
-			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"OpenSCManager"};
 	}
 
 	::SetLastError(0);
@@ -227,9 +203,7 @@ void service_uninstall() {
 		if (error == ERROR_SERVICE_DOES_NOT_EXIST) {
 			win32::cout << "Service does not exist" << std::endl;
 		} else {
-			win32::cerr << "OpenService returned "
-				<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-			throw OSError{};
+			throw win32::Exception1{"OpenService"};
 		}
 	} else {
 		auto status = query_service_status(service.get());
@@ -242,10 +216,7 @@ void service_uninstall() {
 
 				::SetLastError(0);
 				if (!::ControlService(service.get(), SERVICE_CONTROL_STOP, &control_status)) {
-					auto error = ::GetLastError();
-					win32::cerr << "ControlService returned "
-						<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-					throw OSError{};
+					throw win32::Exception1{"ControlService"};
 				}
 
 				status = query_service_status(service.get());
@@ -268,9 +239,7 @@ void service_uninstall() {
 				win32::cerr << "Service already marked for deletion" << std::endl;
 				throw OSError{};
 			} else {
-				win32::cerr << "DeleteService returned "
-					<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-				throw OSError{};
+				throw win32::Exception1{"DeleteService", error};
 			}
 		}
 

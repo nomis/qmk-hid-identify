@@ -25,7 +25,6 @@
 #endif
 
 #include "hid-identify.h"
-#include "../common/types.h"
 #include "windows++.h"
 
 namespace hid_identify {
@@ -43,13 +42,13 @@ static void registry_set_value(HKEY key, const win32::native_string &name,
 	DWORD ret = ::RegSetValueEx(key, name.c_str(), 0, type, data, len);
 
 	if (ret != ERROR_SUCCESS) {
-		win32::cerr << "RegSetValueEx for " << name << " returned "
-			<< win32::ascii_to_native_string(win32::hex_error(ret)) << std::endl;
-		throw OSError{};
+		auto error = ::GetLastError();
+		win32::cout << "Unable to set value of " << name << std::endl;
+		throw win32::Exception1{"RegSetValueEx", error};
 	}
 
 	if (verbose) {
-		win32::cout << "Set value of " << LOG_REG_VALUE_MSGFILE_NAME << std::endl;
+		win32::cout << "Set value of " << name << std::endl;
 	}
 }
 
@@ -65,9 +64,7 @@ void registry_add_event_log(bool verbose) {
 				KEY_ALL_ACCESS, nullptr, &data, &disposition, txn.get(), nullptr);
 
 			if (ret != ERROR_SUCCESS) {
-				win32::cerr << "RegCreateKeyTransacted returned "
-					<< win32::ascii_to_native_string(win32::hex_error(ret)) << std::endl;
-				throw OSError{};
+				throw win32::Exception1{"RegCreateKeyTransacted"};
 			}
 
 			switch (disposition) {
@@ -107,10 +104,7 @@ void registry_add_event_log(bool verbose) {
 
 	SetLastError(0);
 	if (!::CommitTransaction(txn.get())) {
-		auto error = ::GetLastError();
-		win32::cerr << "CommitTransaction returned "
-			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"CommitTransaction"};
 	}
 	if (verbose) {
 		win32::cout << "Committed changes" << std::endl;
@@ -132,17 +126,12 @@ void registry_remove_event_log(bool verbose) {
 			win32::cout << "Key not found: " << LOG_REG_HLKM_KEY << std::endl;
 		}
 	} else {
-		win32::cerr << "RegDeleteKeyTransacted returned "
-			<< win32::ascii_to_native_string(win32::hex_error(ret)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"RegDeleteKeyTransacted"};
 	}
 
 	SetLastError(0);
 	if (!::CommitTransaction(txn.get())) {
-		auto error = ::GetLastError();
-		win32::cerr << "CommitTransaction returned "
-			<< win32::ascii_to_native_string(win32::hex_error(error)) << std::endl;
-		throw OSError{};
+		throw win32::Exception1{"CommitTransaction"};
 	}
 
 	if (verbose) {

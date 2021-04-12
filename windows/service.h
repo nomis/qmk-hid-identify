@@ -61,7 +61,9 @@ private:
 	void status_error(DWORD exit_code, DWORD service_exit_code = 0);
 
 	void log(LogLevel level, LogCategory category, LogMessage message,
-		int argc, const char *format...);
+		int argc, const char *format...) noexcept;
+	void log(const win32::Exception1 &e) noexcept;
+	void log(const win32::Exception2 &e) noexcept;
 
 	win32::wrapped_ptr<HANDLE, ::DeregisterEventSource> event_log_;
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> stop_event_;

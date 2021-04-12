@@ -108,6 +108,9 @@ static int command_report() {
 			WindowsHIDDevice(device).identify();
 		} catch (const Exception&) {
 			exit_ret = exit_ret ? exit_ret : 1;
+		} catch (const std::exception &e) {
+			win32::cerr << e.what() << std::endl;
+			exit_ret = exit_ret ? exit_ret : 1;
 		}
 	}
 
