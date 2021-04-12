@@ -75,7 +75,6 @@ wrapped_ptr<T, Deleter> wrap_generic(T data) {
 
 wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle);
 wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle);
-wrapped_ptr<HKEY, ::RegCloseKey> wrap_reg_key(HKEY key);
 
 template <typename T>
 using output_func_t = std::function<BOOLEAN(T &data)>;
@@ -166,8 +165,6 @@ using native_char = typename native_string::value_type;
 
 native_string ascii_to_native_string(const std::string &text);
 
-native_string to_native_string(const sized_data<BYTE, DWORD> &data);
-
 /* https://stackoverflow.com/q/2898228/388191 */
 inline bool isdigit(native_char ch) {
 	return (ch >= '0' && ch <= '9');
@@ -177,8 +174,6 @@ inline bool isdigit(native_char ch) {
 inline bool isxdigit(native_char ch) {
 	return isdigit(ch) || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
 }
-
-std::vector<native_string> reg_multi_sz(const native_string &text);
 
 std::string hex_error(DWORD error);
 

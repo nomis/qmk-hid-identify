@@ -43,10 +43,6 @@ wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle) {
 	return wrap_generic_handle(handle);
 }
 
-wrapped_ptr<HKEY, ::RegCloseKey> wrap_reg_key(HKEY key) {
-	return wrap_generic<HKEY, ::RegCloseKey>(key);
-}
-
 wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms) {
 	switch (::WaitForSingleObject(mutex, timeout_ms)) {
 	case WAIT_OBJECT_0:
@@ -78,10 +74,6 @@ std::string to_string(const native_char *text, ssize_t wlen) {
 native_string ascii_to_native_string(const std::string &text) {
 	return native_string{text.begin(), text.end()};
 }
-
-native_string to_native_string(const sized_data<BYTE, DWORD> &data) {
-	return native_string{reinterpret_cast<native_char*>(data.get()), data.size()/2};
-}
 #else
 std::string to_string(const native_char *text, ssize_t len) {
 	if (len < 0) {
@@ -111,26 +103,7 @@ std::string unicode_to_ansi_string(const wchar_t *text, ssize_t wlen) {
 native_string ascii_to_native_string(const std::string &text) {
 	return text;
 }
-
-native_string to_native_string(const sized_data<BYTE, DWORD> &data) {
-	return native_string{reinterpret_cast<native_char*>(data.get()), data.size()};
-}
 #endif
-
-std::vector<native_string> reg_multi_sz(const native_string &text) {
-	std::vector<native_string> values;
-	native_string null_value{TEXT(""), 1};
-	size_t pos = 0;
-	size_t match = text.find(null_value);
-
-	while (match != native_string::npos && match != text.length() - 1) {
-		values.emplace_back(text.substr(pos, match - pos));
-		pos = match + 1;
-		match = text.find(null_value, pos);
-	}
-
-	return values;
-}
 
 std::string hex_error(DWORD error) {
 	std::vector<char> text(2 + (sizeof(DWORD) * 2) + 1);
