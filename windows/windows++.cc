@@ -84,11 +84,11 @@ std::string to_string(const native_char *text, ssize_t len) {
 }
 
 std::string unicode_to_ansi_string(const wchar_t *text, ssize_t wlen) {
-	int len = ::WideCharToMultiByte(CP_OEMCP, 0, text, wlen, nullptr, 0, nullptr, nullptr);
+	int len = ::WideCharToMultiByte(CP_ACP, 0, text, wlen, nullptr, 0, nullptr, nullptr);
 	if (len > 0) {
 		auto buf = std::vector<char>(len);
 
-		len = ::WideCharToMultiByte(CP_OEMCP, 0, text, wlen, buf.data(), buf.size(), nullptr, nullptr);
+		len = ::WideCharToMultiByte(CP_ACP, 0, text, wlen, buf.data(), buf.size(), nullptr, nullptr);
 
 		if (wlen != -1) {
 			return std::string{buf.data(), (size_t)len};
