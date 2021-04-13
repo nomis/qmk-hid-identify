@@ -71,12 +71,8 @@ wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle) {
 	return wrap_generic<HANDLE, ::CloseHandle>(handle);
 }
 
-wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle) {
-	if (handle == INVALID_HANDLE_VALUE) {
-		handle = nullptr;
-	}
-
-	return wrap_generic_handle(handle);
+wrapped_ptr<HANDLE, ::CloseHandle> wrap_valid_handle(HANDLE handle) {
+	return wrap_valid_handle<HANDLE, ::CloseHandle>(handle);
 }
 
 wrapped_ptr<HANDLE, ::ReleaseMutex> acquire_mutex(HANDLE mutex, DWORD timeout_ms) {

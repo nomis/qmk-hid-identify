@@ -185,7 +185,7 @@ DWORD WindowsHIDService::startup() {
 }
 
 DWORD WindowsHIDService::queue_all_devices() {
-	for (auto& device : enumerate_devices()) {
+	for (const auto& device : WindowsHIDEnumeration()) {
 		::SetLastError(0);
 		DWORD ret = ::WaitForSingleObject(stop_event_.get(), 0);
 		if (ret == WAIT_OBJECT_0) {

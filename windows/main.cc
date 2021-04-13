@@ -104,7 +104,7 @@ static int command_unregister() {
 static int command_report() {
 	int exit_ret = 0;
 
-	for (auto& device : enumerate_devices()) {
+	for (const auto& device : WindowsHIDEnumeration()) {
 		try {
 			WindowsHIDDevice(device).identify();
 		} catch (const Exception&) {

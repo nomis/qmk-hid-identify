@@ -110,8 +110,17 @@ wrapped_ptr<T, Deleter> wrap_generic(T data) {
 	}
 }
 
+template <typename T, auto Deleter>
+wrapped_ptr<T, Deleter> wrap_valid_handle(T handle) {
+	if (handle == INVALID_HANDLE_VALUE) {
+		handle = nullptr;
+	}
+
+	return wrap_generic<T, Deleter>(handle);
+}
+
 wrapped_ptr<HANDLE, ::CloseHandle> wrap_generic_handle(HANDLE handle);
-wrapped_ptr<HANDLE, ::CloseHandle> wrap_file_handle(HANDLE handle);
+wrapped_ptr<HANDLE, ::CloseHandle> wrap_valid_handle(HANDLE handle);
 
 template <typename T>
 using output_func_t = std::function<BOOLEAN(T &data)>;

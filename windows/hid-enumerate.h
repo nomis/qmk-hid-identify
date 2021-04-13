@@ -17,12 +17,55 @@
 */
 #pragma once
 
-#include <vector>
+#include <windows.h>
+#include <setupapi.h>
+
+#ifndef NOGDI
+#	undef ERROR
+#endif
+
+#include <iterator>
+#include <string>
 
 #include "windows++.h"
 
 namespace hid_identify {
 
-std::vector<std::wstring> enumerate_devices();
+class WindowsHIDEnumeration {
+public:
+	class const_iterator {
+		using iterator_category = std::input_iterator_tag;
+		using value_type = const std::wstring;
+		using difference_type = DWORD;
+		using pointer = const std::wstring*;
+		using reference = const std::wstring&;
+
+	public:
+		const_iterator(const WindowsHIDEnumeration &di_shared, DWORD di_idx);
+		const_iterator& operator++();
+		const_iterator operator++(int);
+		bool operator==(const const_iterator &other) const;
+		bool operator!=(const const_iterator &other) const;
+		reference operator*() const;
+
+	private:
+		void populate_device_path();
+
+		const WindowsHIDEnumeration &di_shared_;
+		DWORD di_idx_;
+		std::wstring device_path_;
+	};
+
+	WindowsHIDEnumeration();
+
+	const_iterator begin() const;
+	const_iterator end() const;
+	const_iterator cbegin() const;
+	const_iterator cend() const;
+
+private:
+	GUID guid_{};
+	win32::wrapped_ptr<HDEVINFO, ::SetupDiDestroyDeviceInfoList> devinfo_;
+};
 
 } // namespace hid_identify

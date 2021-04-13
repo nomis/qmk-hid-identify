@@ -67,7 +67,7 @@ void WindowsHIDDevice::open(USBDeviceInfo &device_info, std::vector<HIDReport> &
 	}
 
 	::SetLastError(0);
-	handle_ = win32::wrap_file_handle(::CreateFile(filename_.c_str(), GENERIC_WRITE,
+	handle_ = win32::wrap_valid_handle(::CreateFile(filename_.c_str(), GENERIC_WRITE,
 			FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr));
 	if (!handle_) {
 		auto error = ::GetLastError();

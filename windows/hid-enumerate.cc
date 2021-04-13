@@ -29,28 +29,54 @@ extern "C" {
 #	undef ERROR
 #endif
 
-#include <vector>
+#include <iostream>
+#include <string>
 
 #include "windows++.h"
 
 namespace hid_identify {
 
-std::vector<std::wstring> enumerate_devices() {
-	std::vector<std::wstring> devices;
-	GUID guid{};
-	::HidD_GetHidGuid(&guid);
+WindowsHIDEnumeration::const_iterator::const_iterator(
+		const WindowsHIDEnumeration &di_shared, DWORD di_idx)
+		: di_shared_(di_shared), di_idx_(di_idx) {
+	populate_device_path();
+}
 
-	::CM_WaitNoPendingInstallEvents(1000);
+WindowsHIDEnumeration::const_iterator& WindowsHIDEnumeration::const_iterator::operator++() {
+	di_idx_++;
+	populate_device_path();
+	return *this;
+}
 
-	auto devinfo = win32::wrap_generic<HDEVINFO, ::SetupDiDestroyDeviceInfoList>(
-		::SetupDiGetClassDevs(&guid, nullptr, nullptr, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT));
+WindowsHIDEnumeration::const_iterator WindowsHIDEnumeration::const_iterator::operator++(int) {
+	const_iterator ret = *this;
+	++(*this);
+	return ret;
+}
 
-	SP_DEVICE_INTERFACE_DATA di_data;
+bool WindowsHIDEnumeration::const_iterator::operator==(const WindowsHIDEnumeration::const_iterator &other) const {
+	return di_idx_ == other.di_idx_;
+}
 
-	for (DWORD di_idx = 0;
-			di_data = {}, di_data.cbSize = sizeof(di_data),
-			::SetupDiEnumDeviceInterfaces(devinfo.get(), nullptr, &guid, di_idx, &di_data);
-			di_idx++) {
+bool WindowsHIDEnumeration::const_iterator::operator!=(const WindowsHIDEnumeration::const_iterator &other) const {
+	return !(*this == other);
+}
+
+const WindowsHIDEnumeration::const_iterator::reference WindowsHIDEnumeration::const_iterator::operator*() const {
+	return device_path_;
+}
+
+void WindowsHIDEnumeration::const_iterator::populate_device_path() {
+	for (; di_idx_ != MAXDWORD; di_idx_++) {
+		SP_DEVICE_INTERFACE_DATA di_data{};
+		di_data.cbSize = sizeof(di_data);
+
+		if (!::SetupDiEnumDeviceInterfaces(di_shared_.devinfo_.get(), nullptr,
+				&di_shared_.guid_, di_idx_, &di_data)) {
+			di_idx_ = MAXDWORD;
+			break;
+		}
+
 		SP_DEVINFO_DATA do_data{};
 		do_data.cbSize = sizeof(do_data);
 
@@ -61,8 +87,8 @@ std::vector<std::wstring> enumerate_devices() {
 					data->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
 				}
 
-				return ::SetupDiGetDeviceInterfaceDetail(devinfo.get(), &di_data,
-					data, size, required_size, &do_data);
+				return ::SetupDiGetDeviceInterfaceDetail(di_shared_.devinfo_.get(),
+					&di_data, data, size, required_size, &do_data);
 			}
 		);
 		if (!di_detail_data) {
@@ -72,8 +98,8 @@ std::vector<std::wstring> enumerate_devices() {
 		/* Check device is installed */
 		auto install_state = win32::make_sized<BYTE, DWORD>(
 			[&] (BYTE *data, DWORD size, DWORD *required_size) {
-				return ::SetupDiGetDeviceRegistryProperty(devinfo.get(), &do_data,
-					SPDRP_INSTALL_STATE, nullptr, data, size, required_size);
+				return ::SetupDiGetDeviceRegistryProperty(di_shared_.devinfo_.get(),
+					&do_data, SPDRP_INSTALL_STATE, nullptr, data, size, required_size);
 			}
 		);
 		if (!install_state) {
@@ -85,10 +111,43 @@ std::vector<std::wstring> enumerate_devices() {
 			continue;
 		}
 
-		devices.emplace_back(di_detail_data->DevicePath);
+		device_path_ = di_detail_data->DevicePath;
+		return;
 	}
 
-	return devices;
+	if (di_idx_ == MAXDWORD) {
+		device_path_ = L"";
+	}
+}
+
+WindowsHIDEnumeration::WindowsHIDEnumeration() {
+	::HidD_GetHidGuid(&guid_);
+
+	::CM_WaitNoPendingInstallEvents(1000);
+
+	::SetLastError(0);
+	devinfo_ = win32::wrap_valid_handle<HDEVINFO, ::SetupDiDestroyDeviceInfoList>(
+		::SetupDiGetClassDevs(&guid_, nullptr, nullptr,
+			DIGCF_DEVICEINTERFACE | DIGCF_PRESENT));
+	if (!devinfo_) {
+		throw win32::Exception1{"SetupDiGetClassDevs"};
+	}
+}
+
+WindowsHIDEnumeration::const_iterator WindowsHIDEnumeration::begin() const {
+	return cbegin();
+}
+
+WindowsHIDEnumeration::const_iterator WindowsHIDEnumeration::end() const {
+	return cend();
+}
+
+WindowsHIDEnumeration::const_iterator WindowsHIDEnumeration::cbegin() const {
+	return WindowsHIDEnumeration::const_iterator(*this, 0);
+}
+
+WindowsHIDEnumeration::const_iterator WindowsHIDEnumeration::cend() const {
+	return WindowsHIDEnumeration::const_iterator(*this, MAXDWORD);
 }
 
 } // namespace hid_identify

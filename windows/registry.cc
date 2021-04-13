@@ -56,7 +56,7 @@ static void registry_set_value(HKEY key, const std::wstring &name,
 }
 
 void registry_add_event_log(bool verbose) {
-	auto txn = win32::wrap_file_handle(::CreateTransaction(
+	auto txn = win32::wrap_valid_handle(::CreateTransaction(
 		nullptr, nullptr, 0, 0, 0, 60000, nullptr));
 
 	auto log_key = win32::wrap_output<HKEY, ::RegCloseKey>(
@@ -115,7 +115,7 @@ void registry_add_event_log(bool verbose) {
 }
 
 void registry_remove_event_log(bool verbose) {
-	auto txn = win32::wrap_file_handle(::CreateTransaction(
+	auto txn = win32::wrap_valid_handle(::CreateTransaction(
 		nullptr, nullptr, 0, 0, 0, 60000, nullptr));
 
 	DWORD ret = ::RegDeleteKeyTransacted(HKEY_LOCAL_MACHINE, LOG_REG_HLKM_KEY.c_str(),
