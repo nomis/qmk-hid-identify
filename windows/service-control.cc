@@ -76,7 +76,7 @@ static win32::sized_data<SERVICE_STATUS_PROCESS, DWORD> wait_service_status(
 			start_time_ms = ::GetTickCount();
 			check_point = status->dwCheckPoint;
 			wait_hint_ms = status->dwWaitHint;
-		} else if (status->dwCurrentState != pending_state) {
+		} else if (status->dwCurrentState == pending_state) {
 			if (::GetTickCount() - start_time_ms > wait_hint_ms) {
 				if (pending_state == SERVICE_START_PENDING) {
 					std::wcerr << "Timeout starting service" << std::endl;

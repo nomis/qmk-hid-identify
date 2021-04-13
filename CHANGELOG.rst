@@ -10,6 +10,11 @@ Changed
 * Use lazy initialisation for HID enumeration on Windows so that the service
   will not stop responding if there are a lot of devices.
 
+Fixed
+~~~~~
+
+* Windows service start/stop does not timeout correctly.
+
 1.0.0_ |--| 2021-04-12
 ----------------------
 
