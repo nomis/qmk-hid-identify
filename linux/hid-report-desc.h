@@ -41,6 +41,7 @@
 ********************************************************/
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #include "../common/types.h"
