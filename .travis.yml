@@ -1,0 +1,24 @@
+language: cpp
+
+sudo: false
+
+matrix:
+  include:
+    - name: Linux
+      os: linux
+      addons:
+        apt:
+          packages: [python3-pip]
+
+install:
+    pip3 install --user --upgrade 'pip>=20,<21' || exit 1;
+    pip3 install --user setuptools || exit 1;
+    pip3 install --user meson ninja || exit 1;
+
+script:
+    make -C linux DESTDIR="`pwd`/linux/build/install" distclean check install || exit 1
+
+notifications:
+  email:
+    recipients:
+      - secure: "QjWP56EWGbathAMPZqdpV3EcOwFBKvYrIJGhEk5DFXTP1epBTOtLqU2NnFtkucOGHUUddp24QQ1TQjcViMUctdPyXvhfFUVlZLNLJy1Z2HOeVp4uqw8kX0J3E3fcC4aYrqu8Vg/SEt5SyTVXNJdEg1qzkOJX9srGWan9SOptDLQ92mGJde4233/90HDuCPPL4OXzz2Mev3alSH0BSqFzQ9tu51A4eEW2dt18XQ0CfLJnRTLnGM2uH1WyMI7jJ1AUWkHeh7NH1Fsoi3XH2rM87gRG6BWWsWwfq/Yd8vCYy57lWbu74eVyov4J827lVZofPiavbHCGfVk8n54RgF088x7AvpuFQC8Hh6y38Lw7OXj3/hCqkrRG8h9bam5OsBCq3H4KKZutZ/DFUY2xMvGP9vMokEqnZRPQEksmwCBbpj1ZT6lP1Xx4F2W32nvUzh+GUWh3Mez5onz+MpPSiw97WM3LA+dV/aYagDzY1hPHqRRcJGGSc49PEXWw4M/bqIQDsPPB5YRyWL8hdp1k6yLUz/BlF8whd3lWFzKeUyHFacQe2bSYeaRiKE7A/eiDv1gAJREruW+IrfzUAg2h/+hl/Eu1DXOZFED4otPjznBkxV+I9h0E6Bm5yPmRIvDTHyMvGCttdud7rhGgSu7ol4fMKfPERkBHtuh+JbZxAFGBf/0="
