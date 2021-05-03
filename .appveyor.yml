@@ -1,10 +1,11 @@
 environment:
   global:
+    MESON_OPTS: '--cross cross64.ini'
     CYG_ARCH: x86_64
     CYG_BASE: 'C:\cygwin64'
 
 install:
-  - '"%CYG_BASE%\setup-%CYG_ARCH%.exe" --quiet-mode --no-shortcuts --packages bash,cygutils-extra,cygwin-devel,git,gcc-core,gcc-g++,make,meson,ninja,python3'
+  - '"%CYG_BASE%\setup-%CYG_ARCH%.exe" --quiet-mode --no-shortcuts --packages bash,cygutils-extra,cygwin-devel,git,mingw64-x86_64-gcc-core,mingw64-x86_64-gcc-g++,make,meson,ninja,python3'
   - '"%CYG_BASE%\bin\cygcheck" -dc'
   - '"%CYG_BASE%\bin\bash" -lc "id"'
   - '"%CYG_BASE%\bin\bash" -lc "cygdrop id"'
