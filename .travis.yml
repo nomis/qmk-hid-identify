@@ -16,7 +16,7 @@ install:
     pip3 install --user meson ninja || exit 1;
 
 script:
-    make -C linux DESTDIR="`pwd`/linux/build/install" distclean check install || exit 1
+    make -C linux DESTDIR="`pwd`/linux/build/install" distclean install || exit 1
 
 notifications:
   email:

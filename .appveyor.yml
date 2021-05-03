@@ -1,0 +1,18 @@
+environment:
+  global:
+    CYG_ARCH: x86_64
+    CYG_BASE: 'C:\cygwin64'
+
+install:
+  - '"%CYG_BASE%\setup-%CYG_ARCH%.exe" --quiet-mode --no-shortcuts --packages bash,cygutils-extra,cygwin-devel,git,gcc-core,gcc-g++,make,meson,ninja,python3'
+  - '"%CYG_BASE%\bin\cygcheck" -dc'
+  - '"%CYG_BASE%\bin\bash" -lc "id"'
+  - '"%CYG_BASE%\bin\bash" -lc "cygdrop id"'
+  - '"%CYG_BASE%\bin\bash" -lc "mount"'
+
+build_script:
+  - '"%CYG_BASE%\bin\bash" -lc "cd \"$APPVEYOR_BUILD_FOLDER\" && git config --local core.symlinks true"'
+  - '"%CYG_BASE%\bin\bash" -lc "cd \"$APPVEYOR_BUILD_FOLDER\" && git clean -qfdx"'
+  - '"%CYG_BASE%\bin\bash" -lc "cd \"$APPVEYOR_BUILD_FOLDER\" && git reset --hard"'
+  - '"%CYG_BASE%\bin\bash" -lc "cd \"$APPVEYOR_BUILD_FOLDER\" && make -C windows"'
+  - '"%CYG_BASE%\bin\bash" -lc "cd \"$APPVEYOR_BUILD_FOLDER\" && make -C windows DESTDIR=\"`pwd`/windows/build/install\" distclean install"'
