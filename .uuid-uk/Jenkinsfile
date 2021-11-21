@@ -76,7 +76,7 @@ pipeline {
 					stage("Build") {
 						steps {
 							dir(PLATFORM) {
-								sh "pipenv run meson --buildtype=release build/ -Db_lto=true ${meson_opts()}"
+								sh "pipenv run meson --buildtype=release build/ -Db_lto=true --unity on --unity-size 10000 ${meson_opts()}"
 								sh "pipenv run ninja -C build/ -j 1"
 							}
 						}
