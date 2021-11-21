@@ -37,6 +37,7 @@ source_files = [
 		'../common/usb-vid-pid.cc',
 	),
 	resource_file,
+	events_files,
 ]
 
 cpp = meson.get_compiler('cpp')
