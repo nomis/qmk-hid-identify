@@ -4,6 +4,11 @@ Change log
 Unreleased_
 -----------
 
+1.0.2_ |--| 2022-01-30
+----------------------
+
+Support resuming from S4 hibernate on Windows.
+
 Added
 ~~~~~
 
@@ -32,6 +37,7 @@ Initial release for Linux and Windows.
 
 .. |--| unicode:: U+2013 .. EN DASH
 
-.. _Unreleased: https://github.com/nomis/qmk-hid-identify/compare/1.0.1...HEAD
+.. _Unreleased: https://github.com/nomis/qmk-hid-identify/compare/1.0.2...HEAD
+.. _1.0.2: https://github.com/nomis/qmk-hid-identify/compare/1.0.1...1.0.2
 .. _1.0.1: https://github.com/nomis/qmk-hid-identify/compare/1.0.0...1.0.1
 .. _1.0.0: https://github.com/nomis/qmk-hid-identify/commits/1.0.0
