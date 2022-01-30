@@ -1,6 +1,6 @@
 ;/*
 ;	qmk-hid-identify - Identify the current OS to QMK device
-;	Copyright 2021  Simon Arlott
+;	Copyright 2021-2022  Simon Arlott
 ;
 ;	This program is free software: you can redistribute it and/or modify
 ;	it under the terms of the GNU General Public License as published by
@@ -245,6 +245,14 @@ Facility=Application
 SymbolicName=LOGGING_MESSAGE_SVC_CTRL_MUTEX_FAILURE_ID
 Language=en_GB
 Service control handler failed to acquire device queue mutex
+.
+
+MessageId=0x0300
+Severity=Informational
+Facility=Application
+SymbolicName=LOGGING_MESSAGE_SVC_POWER_RESUME_ID
+Language=en_GB
+Power resumed
 .
 
 MessageId=0x2000

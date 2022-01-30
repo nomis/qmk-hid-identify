@@ -4,6 +4,11 @@ Change log
 Unreleased_
 -----------
 
+Added
+~~~~~
+
+* Handle power resume event on Windows by sending a report to all devices.
+
 1.0.1_ |--| 2021-04-13
 ----------------------
 

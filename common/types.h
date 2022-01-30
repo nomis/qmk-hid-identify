@@ -1,6 +1,6 @@
 /*
 	qmk-hid-identify - Identify the current OS to QMK device
-	Copyright 2021  Simon Arlott
+	Copyright 2021-2022  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -93,6 +93,8 @@ enum class LogMessage : unsigned int {
 
 	LOGGING_MESSAGE(SVC_MAIN_MUTEX_FAILURE),
 	LOGGING_MESSAGE(SVC_CTRL_MUTEX_FAILURE),
+
+	LOGGING_MESSAGE(SVC_POWER_RESUME),
 
 	LOGGING_MESSAGE(SVC_OS_FUNC_ERROR_CODE_1),
 	LOGGING_MESSAGE(SVC_OS_FUNC_ERROR_CODE_2),

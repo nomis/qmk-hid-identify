@@ -1,6 +1,6 @@
 /*
 	qmk-hid-identify - Identify the current OS to QMK device
-	Copyright 2021  Simon Arlott
+	Copyright 2021-2022  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -158,6 +158,12 @@ DWORD WindowsHIDService::startup() {
 	}
 
 	::SetLastError(0);
+	power_resume_event_ = win32::wrap_generic_handle(::CreateEvent(nullptr, false, false, nullptr));
+	if (!power_resume_event_) {
+		throw win32::Exception1{"CreateEvent"};
+	}
+
+	::SetLastError(0);
 	device_event_ = win32::wrap_generic_handle(::CreateEvent(nullptr, false, false, nullptr));
 	if (!device_event_) {
 		throw win32::Exception1{"CreateEvent"};
@@ -207,9 +213,10 @@ DWORD WindowsHIDService::queue_all_devices() {
 }
 
 DWORD WindowsHIDService::process_events() {
-	const std::array<HANDLE, 2> wait_handles{
+	const std::array<HANDLE, 3> wait_handles{
 		{
 			stop_event_.get(),
+			power_resume_event_.get(),
 			device_event_.get()
 		}
 	};
@@ -232,7 +239,9 @@ DWORD WindowsHIDService::process_events() {
 			wait_handles.data(), FALSE, wait_ms);
 		if (ret == WAIT_OBJECT_0) { // stop_event_
 			return NO_ERROR;
-		} else if (ret == WAIT_OBJECT_0 + 1) { // device_event_
+		} else if (ret == WAIT_OBJECT_0 + 1) { // power_resume_event_
+			queue_all_devices();
+		} else if (ret == WAIT_OBJECT_0 + 2) { // device_event_
 			// continue
 		} else if (ret != WAIT_TIMEOUT) {
 			throw win32::Exception2{"WaitForMultipleObjects({stop_event,device_event})", ret};
@@ -288,6 +297,14 @@ DWORD WindowsHIDService::control(DWORD code, DWORD ev_type, LPVOID ev_data) {
 			}
 			return NO_ERROR;
 
+		case SERVICE_CONTROL_POWEREVENT:
+			if (ev_type == PBT_APMRESUMEAUTOMATIC) {
+				log(LogLevel::INFO, LogCategory::SERVICE, LogMessage::SVC_POWER_RESUME,
+					0, ::gettext("Power resumed"));
+				::SetEvent(power_resume_event_.get());
+			}
+			return NO_ERROR;
+
 		default:
 			return ERROR_CALL_NOT_IMPLEMENTED;
 	}
@@ -320,7 +337,7 @@ void WindowsHIDService::report_status(DWORD state, DWORD exit_code,
 	status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
 	status.dwCurrentState = state;
 	if (state == SERVICE_RUNNING) {
-		status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+		status.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_POWEREVENT;
 	}
 	status.dwWin32ExitCode = exit_code;
 	status.dwServiceSpecificExitCode = service_exit_code;

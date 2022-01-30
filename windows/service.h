@@ -1,6 +1,6 @@
 /*
 	qmk-hid-identify - Identify the current OS to QMK device
-	Copyright 2021  Simon Arlott
+	Copyright 2021-2022  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,6 +67,7 @@ private:
 
 	win32::wrapped_ptr<HANDLE, ::DeregisterEventSource> event_log_;
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> stop_event_;
+	win32::wrapped_ptr<HANDLE, ::CloseHandle> power_resume_event_;
 	win32::wrapped_ptr<HANDLE, ::CloseHandle> device_event_;
 	win32::wrapped_ptr<HDEVNOTIFY, ::UnregisterDeviceNotification> device_notification_;
 	SERVICE_STATUS_HANDLE status_;
