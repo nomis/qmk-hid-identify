@@ -1,6 +1,6 @@
 /*
 	qmk-hid-identify - Identify the current OS to QMK device
-	Copyright 2021  Simon Arlott
+	Copyright 2021,2024  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -218,8 +218,6 @@ void service_uninstall() {
 				if (!::ControlService(service.get(), SERVICE_CONTROL_STOP, &control_status)) {
 					throw win32::Exception1{"ControlService"};
 				}
-
-				status = query_service_status(service.get());
 			}
 
 			status = wait_service_status(service.get(), SERVICE_STOP_PENDING);

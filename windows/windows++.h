@@ -1,6 +1,6 @@
 /*
 	qmk-hid-identify - Identify the current OS to QMK device
-	Copyright 2021  Simon Arlott
+	Copyright 2021,2024  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ private:
 
 class Exception1: public Exception {
 public:
-	Exception1(const std::string &function_name,
+	explicit Exception1(const std::string &function_name,
 		DWORD error = ::GetLastError()) noexcept;
 
 	virtual const char *what() const noexcept;

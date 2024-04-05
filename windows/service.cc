@@ -1,6 +1,6 @@
 /*
 	qmk-hid-identify - Identify the current OS to QMK device
-	Copyright 2021-2022  Simon Arlott
+	Copyright 2021-2022,2024  Simon Arlott
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -230,7 +230,7 @@ DWORD WindowsHIDService::process_events() {
 			wait_ms = 0;
 		} else if (ret == ERROR_NO_MORE_FILES) {
 			wait_ms = INFINITE;
-		} else if (ret != NO_ERROR) {
+		} else {
 			return ret;
 		}
 
