@@ -46,7 +46,7 @@ int command_service() {
 	std::vector<wchar_t> name{SVC_KEY.c_str(), SVC_KEY.c_str() + SVC_KEY.length() + 1};
 	std::array<SERVICE_TABLE_ENTRY, 2> dispatch_table{
 		{
-			{ name.data(), [] (DWORD, LPTSTR[]) __stdcall noexcept {
+			{ name.data(), [] __stdcall (DWORD, LPTSTR[]) noexcept {
 					static WindowsHIDService service;
 					service.main();
 				}
@@ -85,7 +85,7 @@ WindowsHIDService::WindowsHIDService() {
 void WindowsHIDService::main() {
 	::SetLastError(0);
 	status_ = ::RegisterServiceCtrlHandlerEx(SVC_KEY.c_str(),
-		[] (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) __stdcall noexcept -> DWORD {
+		[] __stdcall (DWORD code, DWORD ev_type, LPVOID ev_data, LPVOID context) noexcept -> DWORD {
 			WindowsHIDService *service = static_cast<WindowsHIDService*>(context);
 			try {
 				return service->control(code, ev_type, ev_data);
