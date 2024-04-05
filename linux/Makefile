@@ -18,11 +18,11 @@ $(BUILD_DIR)/:
 $(RELEASE_DIR)/: | $(BUILD_DIR)/
 	rm -rf "$(RELEASE_DIR)/"
 	mkdir $(RELEASE_DIR)/
-	meson --buildtype=release $(RELEASE_DIR)/ -Db_lto=true $(MESON_OPTS) || (rm -rf "$(RELEASE_DIR)/"; false)
+	meson setup --buildtype=release $(RELEASE_DIR)/ -Db_lto=true $(MESON_OPTS) || (rm -rf "$(RELEASE_DIR)/"; false)
 $(DEBUG_DIR)/: | $(BUILD_DIR)/
 	rm -rf "$(DEBUG_DIR)/"
 	mkdir $(DEBUG_DIR)/
-	meson --buildtype=debug $(DEBUG_DIR)/ $(MESON_OPTS) || (rm -rf "$(DEBUG_DIR)/"; false)
+	meson setup --buildtype=debug $(DEBUG_DIR)/ $(MESON_OPTS) || (rm -rf "$(DEBUG_DIR)/"; false)
 
 compile: | $(RELEASE_DIR)/
 	$(NINJA) -C $(RELEASE_DIR)/
