@@ -1,5 +1,5 @@
 /*
-Copyright 2021  Simon Arlott
+Copyright 2021,2024  Simon Arlott
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,20 +19,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import uk.uuid.jenkins.pipeline.Cron
 import uk.uuid.jenkins.pipeline.Email
 
-def application_agent_labels() {
-	def labels = ["Linux", "Python"]
-
-	labels.add([
-		linux: "GCC",
-		windows: "GCC-mingw-w64",
-	][PLATFORM])
-
-	return labels.join(" && ")
-}
-
 def meson_opts() {
 	return [
-		linux: "",
+		linux: "-Db_lto=true",
 		windows: "--cross cross64.ini",
 	][PLATFORM]
 }
@@ -41,10 +30,6 @@ pipeline {
 	agent none
 	triggers {
 		cron("${Cron.schedule(this)}")
-	}
-	environment {
-		PIPENV_VENV_IN_PROJECT = "1"
-		PIPENV_SKIP_LOCK = "1"
 	}
 	stages {
 		stage("Application") {
@@ -56,11 +41,16 @@ pipeline {
 					}
 				}
 				agent {
-					label application_agent_labels()
+					dockerfile {
+						label "Linux && Docker"
+						dir ".uuid-uk"
+						filename "Dockerfile"
+						args "--cap-drop=ALL --security-opt=no-new-privileges=true"
+					}
 				}
 				environment {
-					TMPDIR = "${WORKSPACE_TMP}"
-					DESTDIR= "${WORKSPACE_TMP}/DESTDIR"
+					TMPDIR="${WORKSPACE_TMP}"
+					DESTDIR="${WORKSPACE_TMP}/DESTDIR"
 				}
 				stages {
 					stage("Checkout") {
@@ -68,16 +58,11 @@ pipeline {
 							sh "git clean -fdx"
 						}
 					}
-					stage("Prepare") {
-						steps {
-							sh "pipenv install meson ninja"
-						}
-					}
 					stage("Build") {
 						steps {
 							dir(PLATFORM) {
-								sh "pipenv run meson --buildtype=release build/ -Db_lto=true --unity on --unity-size 10000 ${meson_opts()}"
-								sh "pipenv run ninja -C build/ -j 1"
+								sh "meson setup --buildtype=release build/ --unity on --unity-size 10000 ${meson_opts()}"
+								sh "ninja -C build/ -j 1"
 							}
 						}
 						post {
@@ -89,7 +74,7 @@ pipeline {
 					stage("Install") {
 						steps {
 							dir(PLATFORM) {
-								sh "pipenv run ninja -C build/ -j 1 install"
+								sh "ninja -C build/ -j 1 install"
 							}
 						}
 					}
