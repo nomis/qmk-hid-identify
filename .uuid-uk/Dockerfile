@@ -1,7 +1,9 @@
 FROM debian:testing
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN echo 'APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/50keep-cache
+RUN rm /etc/apt/apt.conf.d/docker-clean
+RUN echo 'APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-downloaded-packages
+
 RUN \
 	--mount=type=cache,sharing=locked,target=/var/cache/apt,id=debian-testing-var-cache-apt \
 	--mount=type=cache,sharing=locked,target=/var/lib/apt,id=debian-testing-var-lib-apt \
